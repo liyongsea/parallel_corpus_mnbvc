@@ -14,6 +14,13 @@ link_pattern = r'<a href="((?:https?://[^/]*?\.un\.org)?/[^"]*?)"'
 media_format_list = ['avi', 'wmv', 'mpeg', 'mp4', 'mov', 'mkv', 'flv', 'f4v', 'm4v', 'rmvb', 'rm', '3gp', 'dat', 'ts',
                      'mts', 'vob', 'bmp', 'jpg', 'png', 'tiff', 'gif', 'pcx', 'tga', 'exif', 'fpx', 'svg', 'psd', 'cdr',
                      'pcd', 'dxf', 'ufo', 'eps', 'ai', 'raw', 'wmf', 'mp3', 'aiff', 'aac']
+# url中含该list中的字符串则不处理
+excluded_url_pattern_list = ['search?', 'download?', 'subscribe?', 'system/403?',
+                             'https://www.un.org/unispal/documents/?']
+# url符合pattern则做替换
+url_clean_pattern_list = [(r'^http://\s*', 'https://'), (r'\r?\n', ''), (r'\s*#.*', ''), (r'(?<=\.pdf)&.*', ''),
+                          (r'(?<=asp)\?.*', ''), (r'\.un\.org/../', '.un.org/'), (r'/[^./]*?/../', '/'),
+                          (r'\s*[|/]$', ''), (r'https://(.*?\.un\.org)//\1/', r'https://\1/'), (' ', '%20')]
 
 
 def initialize_url_status():
@@ -154,41 +161,54 @@ def get_absolute_path(url):
     return url
 
 
-# 这个方法比较乱，属于不断碰到问题不断打补丁的情况
+def has_excluded_url_pattern(url):
+    if any(excluded_pattern in url for excluded_pattern in excluded_url_pattern_list):
+        return True
+    else:
+        return False
+
+
+def clean_url(url):
+    # if url.find('http://') == 0:
+    #     url = url.replace('http://', 'https://')
+    # if url[-1] == '/':
+    #     url = url[:-1]
+    # if url.find('#') > 0:
+    #     url = re.sub(r'#.*', '', url)
+    # if url.find('.pdf&') > 0:
+    #     url = re.sub(r'(?<=\.pdf)&.*', '', url)
+    # if url.find('../') > 0:
+    #     url = get_absolute_path(url)
+    # url = re.sub(r'\r?\n', '', re.sub(r'\|$', '', url))
+    # url = url.strip().replace(' ', '%20')
+    # if re.search(r'https://(.*?un\.org)//\1/', url):
+    #     url = re.sub(r'https://(.*?un\.org)//', 'https://', url)
+    # if re.search(r'asp\?', url):
+    #     url = re.sub(r'(?<=asp)\?.*', '', url)
+
+    # 以上各种条件下的清洗改为等价的正则替换
+    for pattern, repl in url_clean_pattern_list:
+        url = re.sub(pattern, repl, url)
+    return url
+
+
 def parse_urls(curr_url, html):
     urls = []
     base_url = re.sub(r'(?<=\.un\.org)/.*', '', curr_url)
     matched_urls = re.findall(link_pattern, html)
     for url in matched_urls:
         url = url.strip()
-        if url.find('search?') > 0:
-            continue
-        if url.find('download?') > 0:
-            continue
-        if url.find('subscribe?') > 0:
-            continue
-        if is_media(url):
-            continue
-        if url.find('https://www.un.org/unispal/documents/?') == 0:
-            continue
-        if url.find('/') == 0:
+        if url[0] == '/':
+            # 把相对路径改为绝对路径
             url = base_url + url
-        if url.find('http://') == 0:
-            url = url.replace('http://', 'https://')
-        if url[-1] == '/':
-            url = url[:-1]
-        if url.find('#') > 0:
-            url = re.sub(r'#.*', '', url)
-        if url.find('../') > 0:
-            url = get_absolute_path(url)
-        if url.find('.pdf&') > 0:
-            url = re.sub(r'(?<=\.pdf)&.*', '', url)
-        url = re.sub(r'\r?\n', '', re.sub(r'\|$', '', url))
-        url = url.strip().replace(' ', '%20')
-        if re.search(r'https://(.*?un\.org)//\1/', url):
-            url = re.sub(r'https://(.*?un\.org)//', 'https://', url)
-        if re.search(r'asp\?', url):
-            url = re.sub(r'(?<=asp)\?.*', '', url)
+        if has_excluded_url_pattern(url):
+            # 如果url中包含某些字符串则不处理
+            continue
+        elif is_media(url):
+            # 如果是媒体格式的文件则不处理
+            continue
+        # 清洗url
+        url = clean_url(url)
         if url not in urls:
             urls.append(url)
     return urls
