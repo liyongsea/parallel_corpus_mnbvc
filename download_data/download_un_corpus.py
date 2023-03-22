@@ -12,6 +12,7 @@ num_of_threads = 5
 lang_list = ['zh', 'en', 'fr', 'es', 'ru', 'ar']
 root_url = 'https://www.un.org/'
 url_status = {}
+tmp_url_status = {}
 link_pattern = r'<a href="((?:https?://[^/]*?\.un\.org)?/[^"]*?)"'
 media_format_list = ['avi', 'wmv', 'mpeg', 'mp4', 'mov', 'mkv', 'flv', 'f4v', 'm4v', 'rmvb', 'rm', '3gp', 'dat', 'ts',
                      'mts', 'vob', 'bmp', 'jpg', 'png', 'tiff', 'gif', 'pcx', 'tga', 'exif', 'fpx', 'svg', 'psd', 'cdr',
@@ -22,11 +23,12 @@ excluded_url_pattern_list = ['search?', 'download?', 'subscribe?', 'system/403?'
 # url符合pattern则做替换
 url_clean_pattern_list = [(r'^http://\s*', 'https://'), (r'\r?\n', ''), (r'\s*#.*', ''), (r'(?<=\.pdf)&.*', ''),
                           (r'(?<=asp)\?.*', ''), (r'\.un\.org/../', '.un.org/'), (r'/[^./]*?/../', '/'),
-                          (r'\s*[|/]$', ''), (r'https://(.*?\.un\.org)//\1/', r'https://\1/'), (' ', '%20')]
+                          (r'\s*[|/?]$', ''), (r'https://(.*?\.un\.org)//\1/', r'https://\1/'), (' ', '%20'),
+                          (r'(.*ldcportal/content/[^?\n]*)\?.*', r'\1'), r'\t', '']
 
 
 def initialize_url_status():
-    global url_status
+    global url_status, tmp_url_status
 
     if os.path.exists(base_dir + 'url_status.txt'):
         with open(base_dir + 'url_status.txt', 'r', encoding='utf8') as f:
@@ -34,6 +36,7 @@ def initialize_url_status():
             url_status = {line.split('\t')[0]: int(line.split('\t')[1]) for line in lines}
     else:
         url_status = {root_url + lang: 0 for lang in lang_list}
+    tmp_url_status = url_status.copy()
 
 
 def save_url_status(curr_url_status):
@@ -135,7 +138,7 @@ def get_html(url):
                       "Chrome/96.0.4664.110 Safari/537.36 "
     }
     try:
-        resp = requests.get(url, headers=header, timeout=30)
+        resp = requests.get(url, headers=header, timeout=10)
         html = resp.content.decode('utf8')
         return html
     except Exception as e:
@@ -217,35 +220,38 @@ def parse_urls(curr_url, html):
 
 
 def process_url(url, force_to_save):
-    global counter, url_status
+    global counter, tmp_url_status
     has_new = False
     counter += 1
 
     if url.lower()[-4:] == '.pdf' or url.lower()[-4:] == '.doc' or url.lower()[-5:] == '.docx':
         # 目前仅下载这3种文件，其余格式的二进制文件基本上没有有效文本暂不考虑了
         status = save_file(url)
-        url_status[url] = status
+        tmp_url_status[url] = status
         return True
 
     html = get_html(url)
     if html:
         # 保存网页到本地
         status = save_local(url, html)
-        url_status[url] = status
+        tmp_url_status[url] = status
 
         # 从网页中解析所有链接
         urls = parse_urls(url, html)
         if len(urls) > 0:
             for new_url in urls:
-                if re.sub('/$', '', new_url) in url_status.keys():
+                if re.sub('/$', '', new_url) in tmp_url_status.keys():
                     continue
-                url_status[new_url] = 0
+                tmp_url_status[new_url] = 0
                 has_new = True
     else:
-        url_status[url] = -1
+        tmp_url_status[url] = -1
 
     if force_to_save or counter % 100 == 0:
-        save_url_status(url_status)
+        print('%s - total url: %i, crawled url: %i' %
+              (time.strftime('%Y-%m-%d %H:%M:%S'), len(tmp_url_status),
+               len([url for url in tmp_url_status.keys() if tmp_url_status[url] != 0])))
+        save_url_status(tmp_url_status)
 
     return has_new
 
