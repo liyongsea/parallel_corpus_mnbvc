@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+downloaded_websites
+
 # C extensions
 *.so
 
