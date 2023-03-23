@@ -94,10 +94,9 @@ def download_and_parse_page(tuple_parameter):
     url_split = url.split("//")
     filename =  url_split[1].replace("/",".") if len(url_split) == 2 else "no_prefix" + url_split[0]
     
-
-    with open(f"{output_folder}/{lang}/{filename}.html", 'w', encoding='utf-8') as f:
-        f.write(html_text)
-
+    if html_text:
+        with open(f"{output_folder}/{lang}/{filename}.html", 'w', encoding='utf-8') as f:
+            f.write(html_text)
 
     
     
