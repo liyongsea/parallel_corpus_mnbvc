@@ -7,6 +7,6 @@
 >  "zh,ar,en" 中的值必须在 ['zh', 'en', 'fr', 'es', 'ru', 'ar'] 中，如果不指定则为全部
 >
 > ```shell
-> python ./download_un_corpus_by_sitemap_to_loacl "zh,ar,en" 
+> python ./download_un_corpus_by_sitemap_to_loacl.py "zh,ar,en" 
 >
 > ```
