@@ -2,10 +2,7 @@ import datasets
 from datasets import Dataset
 from bs4 import BeautifulSoup
 from tqdm import tqdm
-
-
-dataset = datasets.load_dataset("ranWang/un_corpus_for_sitemap")
-
+import multiprocessing
 
 not_required_content = {'Weibo', 'Twitter', '打印', '电子邮件', '\n', '.', '。', ''}
 not_required_class = {"datetime", "media-credit", "list-group"}
@@ -64,16 +61,31 @@ def transform_dict_to_dataset(dataset_single_lang_dict):
     return Dataset.from_dict(dataset_list_dict)
 
 
-for lang in dataset:
+if __name__ == "__main__":
 
-    obtained_content_row_list = []
+    print("""
+    每一个语言获取文章内容和完毕后，会在本地生成一个 "{lang}_dataset"
+    可使用 datasets.load_from_disk("{lang}_dataset") 读取dataset
+    """)
 
-    for row in tqdm(dataset[lang]):
-        obtained_content_row_list.append(get_dataset_row(row))
+    print(f"start download dataset")
+    dataset = datasets.load_dataset("ranWang/un_corpus_for_sitemap")
 
-    lang_dataset = transform_dict_to_dataset(obtained_content_row_list)
+    for lang in dataset:
 
-    lang_dataset.save_to_disk(f"{lang}_dataset")
+        print(f"start get {lang} new content")
+
+        obtained_content_row_list = []
+
+        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
+            for obtained_content_row in tqdm(pool.imap_unordered(get_dataset_row, dataset[lang]), total=len(dataset[lang])):
+                obtained_content_row_list.append(obtained_content_row)
+
+        lang_dataset = transform_dict_to_dataset(obtained_content_row_list)
+
+        lang_dataset.save_to_disk(f"{lang}_dataset")
+
+        print(f"get {lang} new content success!")
 
 
     
