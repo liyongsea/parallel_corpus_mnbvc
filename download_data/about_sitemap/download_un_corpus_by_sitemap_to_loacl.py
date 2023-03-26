@@ -58,7 +58,6 @@ def get_all_lang_url():
     
     print("Fetching all sitemap_urls...")
     for lang in lang_list:
-        folder_path = os.path.join(output_folder, lang)
        
         sitemap_urls = extract_urls_from_sitemap(f"https://news.un.org/{lang}/sitemap.xml")
         is_lang_with_urls_exist = lang_with_urls.get("lang",None)
