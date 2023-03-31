@@ -141,9 +141,16 @@ if __name__ == '__main__':
             json.dump(file_name_with_six_countries_file_url, f)
 
     print("start download pdf")
-    args_list = [(file_name, file_name_with_six_countries_file_url[file_name]) for file_name in file_name_with_six_countries_file_url]
-        
-    with multiprocessing.Pool(processes=multiprocessing.cpu_count() * 4) as pool:
-        for _ in tqdm(pool.imap_unordered(save_six_countries_file_wrapper, args_list), total=len(args_list)):
-            pass
+    
+
+    for file_name in tqdm(file_name_with_six_countries_file_url):
+        save_six_countries_file(file_name, file_name_with_six_countries_file_url[file_name])
+
+    # 并行量太大会被ban？      
+    # 
+    # args_list = [(file_name, file_name_with_six_countries_file_url[file_name]) for file_name in file_name_with_six_countries_file_url]
+    #                       
+    # with multiprocessing.Pool(processes=multiprocessing.cpu_count() * 4) as pool:
+    #     for _ in tqdm(pool.imap_unordered(save_six_countries_file_wrapper, args_list), total=len(args_list)):
+    #         pass
         

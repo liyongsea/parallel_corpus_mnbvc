@@ -4,6 +4,8 @@ __pycache__/
 *$py.class
 
 downloaded_websites
+download_pdf
+error_url.txt
 
 # C extensions
 *.so
