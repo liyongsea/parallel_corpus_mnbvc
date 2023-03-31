@@ -12,36 +12,21 @@ from tqdm import tqdm
 import json
 import multiprocessing
 
+
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
 }
 
 error_url_save_path = "./error_url.txt"
 
-def save_error_url(url):
+def save_error_url(write_text):
     if os.path.isfile(error_url_save_path):
         mode = 'a'
     else:
         mode = 'w'
         
     with open(error_url_save_path, mode) as f:
-         f.write(url + '\n')
-            
-def get_network_html(url, headers=headers, retries=3, backoff_factor=0.5):
-    session = requests.Session()
-    retry = Retry(total=retries, backoff_factor=backoff_factor)
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount('http://', adapter)
-    session.mount('https://', adapter)
-  
-    try:
-        response = session.get(url, headers=headers)
-        response.raise_for_status()
-    except Exception as e:
-        print(f"链接异常: {url} --- {e}")
-        return None
-    
-    return response.text
+         f.write(write_text + '\n')
 
 def get_network_pdf(url, headers=headers, retries=3, backoff_factor=0.5):
     session = requests.Session()
@@ -54,7 +39,7 @@ def get_network_pdf(url, headers=headers, retries=3, backoff_factor=0.5):
         response = session.get(url, headers=headers)
         response.raise_for_status()
     except Exception as e:
-        save_error_url(url)
+        save_error_url(url + "\n" + str(e))
         return None
     
     return response.content
