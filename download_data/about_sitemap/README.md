@@ -27,3 +27,16 @@ python download_pdf_by_sitemap_to_loacl.py --worker_thread=1 --file_save_path=".
         - 默认-1
     0 < start < end < ~210000
 ```
+
+
+```bash
+
+python download_pdf_by_sitemap_to_loacl.py --downloaded_pdf_path="./download_pdf" --pdf_text_file_path="./pdf_text_file"
+
+在以上指令中：
+    - downloaded_pdf_path 由download_pdf_by_sitemap_to_loacl脚本跑出来的并保存pdf的文件夹
+        - 默认"./download_pdf"
+    - pdf_text_file_path 保存pdf_text的文件夹
+        - 默认"./pdf_text_file"
+      
+```
