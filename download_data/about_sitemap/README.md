@@ -6,7 +6,7 @@ pip install -r requirements.txt
 # download_pdf_by_sitemap_to_loacl.py script run guide
 ```bash
 
-python download_pdf_by_sitemap_to_loacl.py --worker_thread=1 --file_save_path="./download_pdf" --erroe_file_save_path="./error.txt" --start=0 --end=-1
+python download_pdf_by_sitemap_to_loacl.py --worker_thread=1 --file_save_path="./download_pdf" --erroe_file_save_path="./error.txt" --start=111000 --end=-1
 
 在以上指令中：
     - worker_thread 并行的核心数量，不建议设置过大（可能会触发网站对于运行者的限流/熔断）
@@ -20,5 +20,9 @@ python download_pdf_by_sitemap_to_loacl.py --worker_thread=1 --file_save_path=".
     - erroe_file_save_path 错误文件保存的路径及其文件名（尽量文件后缀为txt）\
         - 默认"./error.txt"
     - start 开始下载的索引位置
-    - end 开始下载的索引位置
+        - 必须大于0
+        - 默认0（从头开始）
+    - end 结束下载的索引位置
+        - -1: 到最后
+        - 默认-1
 ```
