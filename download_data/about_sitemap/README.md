@@ -25,4 +25,5 @@ python download_pdf_by_sitemap_to_loacl.py --worker_thread=1 --file_save_path=".
     - end 结束下载的索引位置
         - -1: 到最后
         - 默认-1
+    0 < start < end < ~210000
 ```
