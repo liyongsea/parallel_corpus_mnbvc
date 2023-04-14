@@ -1,4 +1,4 @@
-datasets==2.3.2
+datasets==2.11.0
 transformers==4.20.0
 sentencepiece
 lxml

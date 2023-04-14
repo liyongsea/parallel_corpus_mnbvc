@@ -5,23 +5,19 @@ import os
 import urllib.request
 import gzip
 import io
-from bs4 import BeautifulSoup
 from lxml import etree
 import re
 from tqdm import tqdm 
-import json
 import multiprocessing
 import argparse
 from pathlib import Path
-
-
+import datasets
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36",
 }
 
 DOWNLOAD_PDF_FILE_ROOT_PATH = None
-ROOT_SITEMAP_URL = "https://digitallibrary.un.org/sitemap_index.xml.gz"
 ERROR_URL_SAVE_PATH = None
 
 def save_error_url(write_text):
@@ -32,6 +28,7 @@ def save_error_url(write_text):
         
     with open(ERROR_URL_SAVE_PATH, mode) as f:
          f.write(write_text + '\n')
+
 
 def get_network_pdf(url, headers=HEADERS, retries=3, backoff_factor=0.5):
     session = requests.Session()                                                              
@@ -50,111 +47,47 @@ def get_network_pdf(url, headers=HEADERS, retries=3, backoff_factor=0.5):
     return response.content
 
 
-def get_sitemap(gz_url):
-    response = urllib.request.urlopen(gz_url)
-    compressed_file = io.BytesIO(response.read())
-    decompressed_file = gzip.GzipFile(fileobj=compressed_file)
-    return decompressed_file.read()
-
-
-def get_file_url_in_sitemap(sitemap_text):
-    root = etree.fromstring(sitemap_text)
-    locs = []
-    for url in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}url'):
-        loc = url.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
-        locs.append(loc)
-    return locs
-
-def get_sitemap_url_in_sitemap(sitemap_text):
-    root = etree.fromstring(sitemap_text)
-    locs = []
-    for sitemap in root.findall('{http://www.sitemaps.org/schemas/sitemap/0.9}sitemap'):
-        loc = sitemap.find('{http://www.sitemaps.org/schemas/sitemap/0.9}loc').text
-        locs.append(loc)
-    return locs
-
-
-LANG_LIST = ["ar", "en", "es", "fr", "ru", "zh"]
-
-LANGUAGE_REGEX = re.compile(f"({'|'.join(LANG_LIST)})\.pdf$")
-
-def match_six_countries_file_url(url_list):
-
-    pdf_dict = {}
-    for i in range(len(url_list) - len(LANG_LIST) + 1):
-        match = True
-        for j in range(len(LANG_LIST)):
-            if not LANGUAGE_REGEX.search(url_list[i+j].lower()):
-                match = False
-                break
-   
-        if match:
-            file_name = url_list[i].split("/")[-1].split("-")[0]
-            pdf_dict[file_name] = [url_list[i+j] for j in range(len(LANG_LIST))]
-            
-    return pdf_dict
-
-
 def save_pdf_file(file_path, pdf_text):
     if pdf_text:
         with open(file_path, mode='wb') as f:
              f.write(pdf_text)
 
-def save_six_countries_file(file_name, pdf_urls):
-    Path(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{file_name}").mkdir(parents=True, exist_ok=True)
-    for pdf_url in pdf_urls:
-        if not os.path.exists(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{file_name}/{pdf_url.split('/')[-1]}"):
-            save_pdf_file(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{file_name}/{pdf_url.split('/')[-1]}", get_network_pdf(pdf_url))
 
-def save_six_countries_file_wrapper(args):
-    file_name, file_url = args
-    save_six_countries_file(file_name, file_url)
+def save_six_countries_file(record_list_row):
+    file_save_dir = f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{record_list_row['record']}"
+    Path(file_save_dir).mkdir(parents=True, exist_ok=True)
+    
+    for pdf_url in record_list_row["urls"]:
+        if not os.path.exists(f"{file_save_dir}/{pdf_url.split('/')[-1]}"):
+            save_pdf_file(f"{file_save_dir}/{pdf_url.split('/')[-1]}", get_network_pdf(pdf_url))
+
 
 
 def main(worker_thread, start, end):
-    file_name_with_six_countries_file_url = {}
-    print("start request sitemap")
-
-    if os.path.exists(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/root.json"):
-        with open(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/root.json", mode='r') as f:
-            file_name_with_six_countries_file_url = json.load(f)
-    else:        
-        root_sitemap_text = get_sitemap(ROOT_SITEMAP_URL)
-        file_sitemap_urls = get_sitemap_url_in_sitemap(root_sitemap_text)
-
-
-        for file_sitemap_url in tqdm(file_sitemap_urls):
-            files_sitemap = get_sitemap(file_sitemap_url)
-            file_urls = get_file_url_in_sitemap(files_sitemap)
-            file_name_with_six_countries_file_url.update(match_six_countries_file_url(file_urls))
-
-        Path(DOWNLOAD_PDF_FILE_ROOT_PATH).mkdir(parents=True, exist_ok=True)
-        with open(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/root.json", mode='w') as f:
-            json.dump(file_name_with_six_countries_file_url, f)
+    record_list = datasets.load_dataset("ranWang/un_pdf_record_list_set", split="2000").to_dict()["record_list"]
     
-    if start >= len(file_name_with_six_countries_file_url):
-        raise ValueError("start too long")
+    if start >= len(record_list) -1:
+        raise ValueError(f"start too long, list long is {len(record_list)}")
 
     if end == -1:
-        end = len(file_name_with_six_countries_file_url) 
+        end = len(record_list) 
     else:
-        end = len(file_name_with_six_countries_file_url) if end >= len(file_name_with_six_countries_file_url) else end
+        end = len(record_list) if end >= len(record_list) else end
 
-    args_list = [(file_name, file_name_with_six_countries_file_url[file_name]) for file_name in file_name_with_six_countries_file_url][start:end-1]
+    record_list = record_list[start:end-1]
     print("start download pdf")
 
-
     if worker_thread == 1:
-        for file_name_and_six_countries_file_url in tqdm(args_list):
-            save_six_countries_file_wrapper(file_name_and_six_countries_file_url)
+        for record_list_row in tqdm(record_list):
+            save_six_countries_file(record_list_row)
 
     elif worker_thread == 0:   
         with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            for _ in tqdm(pool.imap_unordered(save_six_countries_file_wrapper, args_list), total=len(args_list)):
+            for _ in tqdm(pool.imap_unordered(save_six_countries_file, record_list), total=len(record_list)):
                 pass
     else:
         with multiprocessing.Pool(processes=worker_thread) as pool:
-            for _ in tqdm(pool.imap_unordered(save_six_countries_file_wrapper, args_list), total=len(args_list)):
+            for _ in tqdm(pool.imap_unordered(save_six_countries_file, record_list), total=len(record_list)):
                 pass
 
 
