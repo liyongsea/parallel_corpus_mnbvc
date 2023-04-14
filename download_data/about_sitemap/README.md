@@ -20,10 +20,6 @@ download_all_pdf_url.py 从"https://digitallibrary.un.org/sitemap_index.xml.gz"�
 
     > download_all_pdf_url.py [--file_save_dir FILE_SAVE_DIR]
 
-        optional arguments:
-        --file_save_dir FILE_SAVE_DIR   
-                        文件保存的文件夹路径
-
   * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
 
 ### get_pdf_link_information.py
@@ -34,16 +30,6 @@ get_pdf_link_information.py 解析由"download_all_pdf_url.py"生成的JSON文�
                       [--downloaded_pdf_url_dir DOWNLOADED_PDF_URL_DIR]
                       [--erroe_file_local ERROE_FILE_LOCAL]
                       [--worker_thread WORKER_THREAD]
-
-    optional arguments:
-    --file_save_dir FILE_SAVE_DIR   
-                            文件保存位置
-    --downloaded_pdf_url_dir DOWNLOADED_PDF_URL_DIR   
-                            已经下载的pdf链接所保存的目录
-    --erroe_file_local ERROE_FILE_LOCAL
-                            报错url文件保存位置
-    --worker_thread WORKER_THREAD
-                            并行核数
 
   * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
   * `--downloaded_pdf_url_dir DOWNLOADED_PDF_URL_DIR` : 由"download_all_pdf_url.py"生成的文件夹路径
