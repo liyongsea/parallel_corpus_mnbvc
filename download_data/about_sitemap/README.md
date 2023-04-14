@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 ### download_all_pdf_url.py
 
-从"https://digitallibrary.un.org/sitemap_index.xml.gz"作为根url下载所有的sitemap，并把sitemap中所有的url保存到本地为"SixLanguagePDF-URLS.json"的文件中
+从 "https://digitallibrary.un.org/sitemap_index.xml.gz" 作为根url下载所有的sitemap，并把sitemap中所有的url保存到本地为"SixLanguagePDF-URLS.json"的文件中
 
     > download_all_pdf_url.py [--file_save_dir FILE_SAVE_DIR]
 
