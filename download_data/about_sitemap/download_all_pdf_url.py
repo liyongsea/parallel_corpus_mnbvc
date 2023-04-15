@@ -56,6 +56,7 @@ LANGUAGE_REGEX = re.compile(f"({'|'.join(LANG_LIST)})\.pdf$")
 
 def match_six_countries_file_url(url_list):
     """Find a matching PDF link for the six languages in a URL linked list
+       In the parameters passed in, the PDF URLs of different languages in the six countries should be continuous 
 
     Returns:
         PDF links in well matched six languages
@@ -94,6 +95,7 @@ if __name__ == '__main__':
 
 
     surrogate_analysis_List = []
+    # Use single threading to ensure stability, If it is multi-threaded, it may trigger the website circuit breaker mechanism
     for son_sitemap_url in tqdm(son_sitemap_url_list):
         son_sitemap_text = get_sitemap_text(son_sitemap_url)
         pdf_url_list = get_pdf_url_in_sitemap_text(son_sitemap_text)

@@ -27,18 +27,24 @@ def save_error_url(write_text):
          f.write(write_text + '\n')
 
 
-def get_html(url, headers=HEADERS, retries=3, backoff_factor=0.5):
+def send_get_html_request_with_retry(url, headers=HEADERS, retries=3, backoff_factor=0.5):
     session = requests.Session()
+
+    #  Create a retry mechanism with the given parameters
     retry = Retry(total=retries, backoff_factor=backoff_factor)
     adapter = HTTPAdapter(max_retries=retry)
+
+    # Mount the adapter to the session for both http and https requests
     session.mount('http://', adapter)
     session.mount('https://', adapter)
   
     try:
         response = session.get(url, headers=headers)
+
+        # Raise an exception if the status code is not successful
         response.raise_for_status()
     except Exception as e:
-        save_error_url(url + "\n" + str(e))
+        save_error_url(url + "\n")
         return None
     
     return response.text
@@ -59,19 +65,16 @@ def parse_six_lang_pdf_links(six_lang_pdf_links):
     basis_pdf_url = six_lang_pdf_links[0]
 
     file_selection_page_url = basis_pdf_url.split("/files")[0]
-    file_selection_page_html_text =  get_html(file_selection_page_url)
-
+    file_selection_page_html_text =  send_get_html_request_with_retry(file_selection_page_url)
+    
     soup = BeautifulSoup(file_selection_page_html_text, features="lxml")
 
-    return{
+    return {
         "year_time":int(soup.select(".metadata-details div:last-of-type > .one-row-metadata")[0].get_text()),
         "record": file_selection_page_url.split("/files")[0].split("record/")[-1],
         "urls":six_lang_pdf_links
     }
 
-
-def sort_by_time(record_list_row):
-    return record_list_row["year_time"]
 
 
 if __name__ == '__main__':
@@ -91,24 +94,10 @@ if __name__ == '__main__':
         six_lang_pdf_urls = json.load(f)
 
 
-    parsed_dict_list = []
-    worker_thread = args.worker_thread
-
-    if worker_thread == 1:
-        for record_list_row in tqdm(six_lang_pdf_urls):
-            parsed_dict = parse_six_lang_pdf_links(record_list_row)
-            parsed_dict_list.append(parsed_dict)
-
-    elif worker_thread == 0:   
-        with multiprocessing.Pool(processes=multiprocessing.cpu_count()) as pool:
-            for parsed_dict in tqdm(pool.imap_unordered(parse_six_lang_pdf_links, six_lang_pdf_urls), total=len(six_lang_pdf_urls)):
-                parsed_dict_list.append(parsed_dict)
-    else:
-        with multiprocessing.Pool(processes=worker_thread) as pool:
-            for parsed_dict in tqdm(pool.imap_unordered(parse_six_lang_pdf_links, six_lang_pdf_urls), total=len(six_lang_pdf_urls)):
-                parsed_dict_list.append(parsed_dict)
+    with multiprocessing.Pool(processes=args.worker_thread or multiprocessing.cpu_count()) as pool:
+        parsed_dict_list = list(tqdm(pool.imap_unordered(parse_six_lang_pdf_links, six_lang_pdf_urls), total=len(six_lang_pdf_urls)))
 
 
-    parsed_dict_list.sort(key=sort_by_time)
+    parsed_dict_list.sort(key=lambda record_list: record_list["year_time"])
     with open(f"{args.file_save_dir}/SixLanguageURL-Information.json", "w") as f:
          json.dump(parsed_dict_list, f)

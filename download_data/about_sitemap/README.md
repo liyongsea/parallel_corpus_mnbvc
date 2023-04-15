@@ -34,4 +34,4 @@ pip install -r requirements.txt
   * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
   * `--downloaded_pdf_url_dir DOWNLOADED_PDF_URL_DIR` : 由"download_all_pdf_url.py"生成的文件夹路径
   * `--erroe_file_local ERROE_FILE_LOCAL` : 网络错误的url文件保存路径，默认"./error_url.txt"
-  * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 1:单线程 | 其余:线程数等于"--worker_thread"填入的数量
+  * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 其余:线程数等于"--worker_thread"填入的数量
