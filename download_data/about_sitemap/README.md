@@ -40,11 +40,11 @@ pip install -r requirements.txt
 
 制作pdf链接信息的datasets，并上传到huggingface
 
-    > get_pdf_link_information.py [--datasets_warehouse DATASETS_WAREHOUSE] 
+    > get_pdf_link_information.py [--datasets_repository DATASETS_REPOSITORY] 
                       [--token TOKEN] 
                       [--file_saved_dir FILE_SAVED_DIR]
 
-  * `--datasets_warehouse DATASETS_WAREHOUSE` : huggingface的仓库名（可以不创建仓库，直接上传，会自动创建）
+  * `--datasets_repository DATASETS_REPOSITORY` : huggingface的仓库名（可以不创建仓库，直接上传，会自动创建）
   * `--token TOKEN` : huggingface的'Access Tokens'，在huggingface的profile中选择'Access Tokens'可查看
   * `--file_saved_dir FILE_SAVED_DIR` : 由'get_pdf_link_information'脚本保存的json文件的文件夹路径     
 

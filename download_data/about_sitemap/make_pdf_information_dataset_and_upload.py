@@ -19,27 +19,36 @@ def process(file_save_dir):
 
     for url_information in urls_information:
         for url in url_information["urls"]:
-            url_information_list["year_time"].append(url_information["year_time"])
-            url_information_list["record"].append(int(url_information["record"]))
-            url_information_list["url"].append(url)
-            url_information_list["language"].append(extract_language_from_url(url))
-            url_information_list["file_name"].append(url.split("files/")[1])
+            try:
+                pre_inster_url_information = {"record":0, "language":'', "year_time":'', "file_name":'', "url":''}
 
+                url_information["year_time"] = url_information["year_time"]
+                url_information["record"] = int(url_information["record"])
+                url_information["url"] = url
+                url_information["language"] = extract_language_from_url(url)
+                url_information["file_name"] = url.split("files/")[1]
+
+                for key in pre_inster_url_information:
+                    url_information_list[key].append(pre_inster_url_information[key])
+
+            # 过滤掉不正确的url，大约11个
+            except Exception:
+                print(url)
 
     return Dataset.from_dict(url_information_list)
     
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--datasets_warehouse', type=str, help='huggingface的仓库')
+    parser.add_argument('--datasets_repository', type=str, help='huggingface的仓库')
     parser.add_argument('--token', type=str, help='huggingface的token')
     parser.add_argument('--file_saved_dir', default="./download_pdf", type=str, help="由'get_pdf_link_information'脚本保存的json文件的文件夹路径")
 
     args = parser.parse_args()
 
-    if not (args.datasets_warehouse or args.token):
-        raise ValueError("datasets_warehouse 或 token 不可为空")
+    if not (args.datasets_repository or args.token):
+        raise ValueError("datasets_repository 或 token 不可为空")
 
     dataset = process(args.file_saved_dir)
 
-    dataset.push_to_hub(args.datasets_warehouse, token=args.token)
+    dataset.push_to_hub(args.datasets_repository, token=args.token)
