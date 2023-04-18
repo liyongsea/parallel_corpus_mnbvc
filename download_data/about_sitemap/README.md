@@ -35,3 +35,17 @@ pip install -r requirements.txt
   * `--downloaded_pdf_url_dir DOWNLOADED_PDF_URL_DIR` : 由"download_all_pdf_url.py"生成的文件夹路径
   * `--erroe_file_local ERROE_FILE_LOCAL` : 网络错误的url文件保存路径，默认"./error_url.txt"
   * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 其余:线程数等于"--worker_thread"填入的数量
+
+### make_pdf_information_dataset_and_upload.py
+
+制作pdf链接信息的datasets，并上传到huggingface
+
+    > get_pdf_link_information.py [--datasets_warehouse DATASETS_WAREHOUSE] 
+                      [--token TOKEN] 
+                      [--file_saved_dir FILE_SAVED_DIR]
+
+  * `--datasets_warehouse DATASETS_WAREHOUSE` : huggingface的仓库名（可以不创建仓库，直接上传，会自动创建）
+  * `--token TOKEN` : huggingface的'Access Tokens'，在huggingface的profile中选择'Access Tokens'可查看
+  * `--file_saved_dir FILE_SAVED_DIR` : 由'get_pdf_link_information'脚本保存的json文件的文件夹路径     
+
+

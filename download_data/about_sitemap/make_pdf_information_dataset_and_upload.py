@@ -33,13 +33,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--datasets_warehouse', type=str, help='huggingface的仓库')
     parser.add_argument('--token', type=str, help='huggingface的token')
-    parser.add_argument('--file_save_dir', default="./download_pdf", type=str, help="由'get_pdf_link_information'脚本保存的json文件的文件夹路径")
+    parser.add_argument('--file_saved_dir', default="./download_pdf", type=str, help="由'get_pdf_link_information'脚本保存的json文件的文件夹路径")
 
     args = parser.parse_args()
 
     if not (args.datasets_warehouse or args.token):
         raise ValueError("datasets_warehouse 或 token 不可为空")
 
-    dataset = process(args.file_save_dir)
+    dataset = process(args.file_saved_dir)
 
     dataset.push_to_hub(args.datasets_warehouse, token=args.token)
