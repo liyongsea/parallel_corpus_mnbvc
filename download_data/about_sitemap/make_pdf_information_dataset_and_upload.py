@@ -11,8 +11,8 @@ def extract_language_from_url(url):
     return lang_code_lower
 
 
-def process(file_save_dir):
-    with open(f"{file_save_dir}/SixLanguageURL-Information.json","r") as f:
+def process(file_saved_dir):
+    with open(f"{file_saved_dir}/SixLanguageURL-Information.json","r") as f:
         urls_information = json.load(f)
 
     url_information_list = {"record":[], "language":[], "year_time":[], "file_name":[], "url":[]}
