@@ -66,8 +66,6 @@ if __name__ == '__main__':
     parser.add_argument('--file_save_dir', default="./download_pdf", type=str, help='文件保存位置')
     parser.add_argument('--erroe_file_local', default="./error_url.txt", type=str, help='报错url文件保存位置')
     parser.add_argument('--worker_thread', default=0, type=int, help='并行核数')
-    parser.add_argument('--start', default=0, type=int, help='开始下载的位置')
-    parser.add_argument('--end', default=-1, type=int, help='结束下载的位置')
 
     args = parser.parse_args()
     ERROR_URL_FILE_LOCAL = args.erroe_file_local
@@ -78,14 +76,6 @@ if __name__ == '__main__':
     # 在这里统一使用hugging仓库的dataset作为下载
     dataset = load_dataset("ranWang/UN_PDF_RECORD_SET", split="2000year")
 
-    if args.start >= len(dataset):
-        raise ValueError(f"start to long, max is {len(dataset)}")
-
-    if args.end == -1:
-        args.end = len(dataset)
-
-
-    url_information_list = dataset.to_dict()
     with multiprocessing.Pool(processes=args.worker_thread or multiprocessing.cpu_count()) as pool:
-        for _ in tqdm(pool.imap_unordered(save_pdf_file, url_information_list[args.start:args.end]), total=len(dataset[args.start:args.end])):
+        for _ in tqdm(pool.imap_unordered(save_pdf_file, dataset), total=len(dataset)):
             pass
