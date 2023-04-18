@@ -4,14 +4,6 @@ pip install -r requirements.txt
 
 ```
 
-## How to Use:
-
-  1. download_all_pdf_url
-     `> python ./download_all_pdf_url.py`
-
-  2. get_pdf_link_information
-     `> python ./get_pdf_link_information.py`
-
 ## Command Line Syntax:
 
 ### download_all_pdf_url.py
@@ -49,3 +41,20 @@ pip install -r requirements.txt
   * `--file_saved_dir FILE_SAVED_DIR` : 由'get_pdf_link_information'脚本保存的json文件的文件夹路径     
 
 
+
+### download_after_2000_year_pdf_to_loacl.py
+
+从huggingfase的仓库下载有关于2000年之后的pdf url
+
+    > download_after_2000_year_pdf_to_loacl.py [--file_save_dir FILE_SAVE_DIR] 
+                      [--erroe_file_local ERROE_FILE_LOCAL] 
+                      [--worker_thread WORKER_THREAD]
+                      [--start START] 
+                      [--end END]
+
+
+  * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
+  * `--erroe_file_local ERROE_FILE_LOCAL` : 网络错误的url文件保存路径，默认"./error_url.txt"
+  * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 其余:线程数等于"--worker_thread"填入的数量
+  * `--start START` : 开始位置
+  * `--end END` : 结束位置
