@@ -26,7 +26,7 @@ def save_error_url(write_text):
          f.write(write_text + '\n')
 
 
-def send_get_html_request_with_retry(url, headers=HEADERS, retries=3, backoff_factor=0.5):
+def send_get_pdf_request_with_retry(url, headers=HEADERS, retries=3, backoff_factor=0.5):
     session = requests.Session()
 
     #  Create a retry mechanism with the given parameters
@@ -46,7 +46,7 @@ def send_get_html_request_with_retry(url, headers=HEADERS, retries=3, backoff_fa
         save_error_url(url + "\n")
         return None
     
-    return response.text
+    return response.content
 
 
 def save_pdf_file(url_information):
@@ -57,7 +57,7 @@ def save_pdf_file(url_information):
     if os.path.exists(file_local):
         return
 
-    html_text = send_get_html_request_with_retry(url_information["url"])
+    html_text = send_get_pdf_request_with_retry(url_information["url"])
    
     if html_text:
         with open(file_local, mode='wb') as f:
