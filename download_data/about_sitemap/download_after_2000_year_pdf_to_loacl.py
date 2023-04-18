@@ -50,13 +50,17 @@ def send_get_html_request_with_retry(url, headers=HEADERS, retries=3, backoff_fa
 
 
 def save_pdf_file(url_information):
-    if os.path.exists(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{url_information['record']}"):
+    file_svae_dir_full_path= f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{url_information['record']}"
+    Path(file_svae_dir_full_path).mkdir(parents=True, exist_ok=True)
+
+    file_local = os.path.join(file_svae_dir_full_path, url_information['url'].split('/')[-1])
+    if os.path.exists(file_local):
         return
 
     html_text = send_get_html_request_with_retry(url_information["url"])
-
+   
     if html_text:
-        with open(f"{DOWNLOAD_PDF_FILE_ROOT_PATH}/{url_information['record']}/{url_information['url'].split('/')[-1]}", mode='wb') as f:
+        with open(file_local, mode='wb') as f:
              f.write(html_text)
 
 
