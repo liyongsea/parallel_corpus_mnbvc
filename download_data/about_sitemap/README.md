@@ -52,7 +52,6 @@ pip install -r requirements.txt
                       [--start START] 
                       [--end END]
 
-
   * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
   * `--erroe_file_local ERROE_FILE_LOCAL` : 网络错误的url文件保存路径，默认"./error_url.txt"
   * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 其余:线程数等于"--worker_thread"填入的数量
