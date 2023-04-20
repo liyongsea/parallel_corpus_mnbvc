@@ -3,6 +3,7 @@ import datetime
 import itertools
 from collections import deque
 
+import nltk
 import Levenshtein
 from datasets import load_dataset
 
@@ -153,16 +154,29 @@ def extract_sentences_from_single_file(filetext: list[str]) -> str:
     inputs: list[str] = outputs
     outputs = [inputs[0]]
     for lineid, nextline in enumerate(inputs[1:]):
-        if not nextline:
+        prevline = outputs[-1]
+        if not nextline or not prevline: # 空行保留
+            outputs.append(nextline)
             continue
         score = 0 # 正表示删换行，负表示保留换行
-        prevline = outputs[-1]
         if prevline[-1] == '.':
             score -= 44
         if prevline[-1] == ',':
             score += 81
 
         score += min(60, len(inputs[lineid])) - 32
+
+        # 加入nltk的条件
+        joined = outputs[-1] + ' ' + nextline
+        tokenized_by_nltk = nltk.sent_tokenize(joined)
+        if len(tokenized_by_nltk) == 1:
+            score += 200
+        elif len(tokenized_by_nltk) == 2:
+            s1, s2 = tokenized_by_nltk
+            if s1 == prevline and s2 == nextline:
+                score -= 200
+            # if is_likely(s1, outputs[-1]) and is_likely(s2, nextline):
+                # score -= 200
 
         if nextline[0].islower():
             score += 83
@@ -175,22 +189,22 @@ def extract_sentences_from_single_file(filetext: list[str]) -> str:
 
 
         if score > 0:
-            outputs[-1] += ' ' + nextline
+            outputs[-1] = joined
         else:
             outputs.append(nextline)
     # 将The meeting rose at ...后一直到The meeting was called to order...中间的部分去掉
-    inputs: list[str] = outputs
-    outputs = []
-    accept_line = True
-    for line in inputs:
-        if accept_line:
-            if re.search(ROSE_TOKEN, line) or re.search(ROSE_TOKEN2, line):
-                accept_line = False
-            outputs.append(line)
-        else:
-            if re.search(BEGIN_TOKEN, line) or re.search(BEGIN_TOKEN2, line):
-                accept_line = True
-                outputs.append(line)
+    # inputs: list[str] = outputs
+    # outputs = []
+    # accept_line = True
+    # for line in inputs:
+    #     if accept_line:
+    #         if re.search(ROSE_TOKEN, line) or re.search(ROSE_TOKEN2, line):
+    #             accept_line = False
+    #         outputs.append(line)
+    #     else:
+    #         if re.search(BEGIN_TOKEN, line) or re.search(BEGIN_TOKEN2, line):
+    #             accept_line = True
+    #             outputs.append(line)
 
     output = '\n'.join(outputs)
     output = re.sub(INFO_PAGE_TOKEN, '', output)
@@ -220,6 +234,7 @@ def filter_index_title(file_index_titles: list[str], page: str) -> str:
                     filtered_page.append(unmatched.popleft())
                 matched = True
                 print(file_index_title, 'cid:', cid)
+                filtered_page.append('\n====' + file_index_title +'====\n')
                 break
 
             if unmatched:
@@ -229,6 +244,7 @@ def filter_index_title(file_index_titles: list[str], page: str) -> str:
                         filtered_page.append(unmatched.popleft())
                     matched = True
                     print(file_index_title, 'cid:', cid)
+                    filtered_page.append('\n====' + file_index_title +'====\n')
                     break
                 unmatched.append(back_line)
 
@@ -246,27 +262,28 @@ def filter_index_title(file_index_titles: list[str], page: str) -> str:
 if __name__ == "__main__":
     now_timer = datetime.datetime.now()
 
-    dataset = load_dataset("ranWang/test_pdf_data", split='new')
+    # dataset = load_dataset("ranWang/test_pdf_data", split='new')
+    dataset = load_dataset("ranWang/UN_PDF_TEXT_DATA", split='randomTest')
     filtered_file = []
-
-    for rowid, row in enumerate(dataset):
+    def procedure(row):
+        """main procedure for mapping"""
         filtered_pages = {}
         for lang in ['en']:
-            lang_match_file_content = row["content"][lang]
+            lang_match_file_content = row[lang].split('\n----\n')
             file_index_titles = []
             for pageid, page in enumerate(lang_match_file_content):
                 lines = []
                 dot_count = 0
                 pageline = page.split('\n')
                 # 第一次过滤：分页符
-                if pageid == 0 and pageline:
-                    found = None
-                    for lineid, line in enumerate(pageline):
-                        if re.search(BEGIN_TOKEN, line) or re.search(BEGIN_TOKEN2, line): # 第一页中，在BEGIN_TOKEN之后的才是正文内容
-                            found = lineid
-                            break
-                    if found is not None:
-                        pageline = pageline[found:]
+                # if pageid == 0 and pageline:
+                #     found = None
+                #     for lineid, line in enumerate(pageline):
+                #         if re.search(BEGIN_TOKEN, line) or re.search(BEGIN_TOKEN2, line): # 第一页中，在BEGIN_TOKEN之后的才是正文内容
+                #             found = lineid
+                #             break
+                #     if found is not None:
+                #         pageline = pageline[found:]
 
                 for lineid, line in enumerate(pageline):
                     line = line.strip()
@@ -280,13 +297,14 @@ if __name__ == "__main__":
                     line = line.strip()
                     line = re.sub(r'^\*[0-9]+\*$', '', line)
                     line = re.sub(r'^[0-9]+-[0-9]+ \(E\)$', '', line)
-                    if line:
-                        lines.append(line)
+                    # if line:
+                    lines.append(line)
                     if INDEX_TOKEN in line:
                         dot_count += 1
                 
                 if dot_count >= 4: # 有大于4行三个点的我们认为是目录页，用特别的处理方式或者先跳过
                     unmatched = []
+                    other_buffer = []
 
                     for line in lines:
                         line = line.strip().replace('\ufffe', '-') # 瞪眼法得，\ufffe应该是连词符-
@@ -304,10 +322,12 @@ if __name__ == "__main__":
                                     break # 没找到就取title
                             if not done:
                                 file_index_titles.append(title)
+                            other_buffer.extend(unmatched)
                             unmatched.clear()
                         else:
                             unmatched.append(line)
-                    lang_match_file_content[pageid] = '' # 拿掉目录页
+                    other_buffer.extend(unmatched)
+                    lang_match_file_content[pageid] = '\n'.join(other_buffer) # 拿掉目录页
                 else:
                     dst = '\n'.join(lines)
                     lang_match_file_content[pageid] = dst
@@ -320,6 +340,15 @@ if __name__ == "__main__":
 
         filtered_file.append(filtered_pages)
 
+    # op = []
+    # def raw_dumper(row):
+    #     op.append(row['en'])
+    # dataset.map(raw_dumper)
+    # with open('enraw.txt', 'w', encoding='utf-8') as rawfile:
+    #     rawfile.write('\n<<<<<<<<<<\n'.join(op))
+    
+    # exit(0)
+    dataset.map(procedure)
     processed_lang_files = {}
 
     for fi in filtered_file:
