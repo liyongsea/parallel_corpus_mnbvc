@@ -104,6 +104,5 @@ if __name__ == '__main__':
 
     six_language_pdf_links = match_six_countries_file_url(surrogate_analysis_List)
 
-    args = parser.parse_args()
     with open(f"{args.file_save_dir}/SixLanguagePDF-URLS.json", "w") as f:
         json.dump(six_language_pdf_links, f)
