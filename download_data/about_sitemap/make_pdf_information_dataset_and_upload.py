@@ -2,9 +2,16 @@ import argparse
 import json
 from datasets import Dataset
 
-LANG_LIST = ["ar","en","zh","fr","ru","es"]
+LANG_LIST = ["ar", "en", "zh", "fr", "ru", "es"]
 
 def extract_language_from_url(url):
+    """
+    Args: url
+        Examples: https://digitallibrary.un.org/record/228957/files/A_2890-ZH.pdf
+
+    Returns:
+        One of the LANG_LIST or None
+    """
     lang_code_lower = url[-6:-4].lower()
     if lang_code_lower not in LANG_LIST:
         return None
@@ -12,6 +19,14 @@ def extract_language_from_url(url):
 
 
 def process(file_saved_dir):
+    """
+    Args: 
+        file_saved_dir: File path saved by script "get_pdf_link_information.py"
+        
+    Returns:
+        Dataset
+        
+    """
     with open(f"{file_saved_dir}/SixLanguageURL-Information.json","r") as f:
         urls_information = json.load(f)
 
