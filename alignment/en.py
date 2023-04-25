@@ -268,7 +268,7 @@ if __name__ == "__main__":
     def procedure(row):
         """main procedure for mapping"""
         filtered_pages = {}
-        for lang in ['en']:
+        for lang in ['en', 'es', 'ru', 'fr']:
             lang_match_file_content = row[lang].split('\n----\n')
             file_index_titles = []
             for pageid, page in enumerate(lang_match_file_content):
