@@ -45,7 +45,7 @@ pip install -r requirements.txt
     'ru_text': 俄语,
     'es_text': 西班牙语,
     'sv_text': 瑞典语,
-    'es_text': 西班牙语,
+    'es_text': 韩语,
     'th_text': 泰语,
     'other1_text': 小语种1,
     'other2_text': 小语种2,
