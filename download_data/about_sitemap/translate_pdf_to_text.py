@@ -39,23 +39,33 @@ def save_txt_file(save_file_loaction, text_list):
        List split by page
     """
     with open(save_file_loaction, 'w') as f:
-         f.write("\n----\n".join(text_list))
+        f.write("\n----\n".join(text_list))
 
 
 def process_folder(record, input_dir_path, output_dir_path):
+    """
+    Args:
+       record: Not only the record, but also the directory name
+       input_dir_path: Find the directory for the record directory
+       output_dir_path: Directory where pdf text files are saved
+    """
+
     if ".json" in record:
         return 
 
     text_save_path = os.path.join(output_dir_path, record)
+    # 检查是否创建record目录
     Path(text_save_path).mkdir(parents=True, exist_ok=True)
 
     try:
         for pdf_file_name in os.listdir(os.path.join(input_dir_path, record)):
+            # 只提取pdf，可能会出现别的脚本产生的json
             if not "pdf" in pdf_file_name:
                 continue
             
             save_pdf_text_path = f"{text_save_path}/{pdf_file_name.replace('.pdf','.txt')}"
 
+            # 如果已经提取过了
             if os.path.exists(save_pdf_text_path):
                 continue
                 
@@ -77,6 +87,7 @@ if __name__ == '__main__':
 
     Path(args.pdf_text_save_dir_path).mkdir(parents=True, exist_ok=True)
 
+    # 找到pdf下载目录中所有的record
     dir_list = os.listdir(args.downloaded_pdf_path)
 
     partial_process_row = partial(process_folder, input_dir_path=args.downloaded_pdf_path, output_dir_path=args.pdf_text_save_dir_path)
