@@ -53,3 +53,13 @@ pip install -r requirements.txt
   * `--file_save_dir FILE_SAVE_DIR` : json文件保存的文件夹路径，默认"./download_pdf"
   * `--erroe_file_local ERROE_FILE_LOCAL` : 网络错误的url文件保存路径，默认"./error_url.txt"
   * `--worker_thread WORKER_THREAD` : 并行线程数，默认0 | 0:根据cpu核心数决定线程（1:1）| 其余:线程数等于"--worker_thread"填入的数量
+
+
+### translate_pdf_to_text.py
+
+将下载下来的pdf转化成文字并保存
+
+    > download_after_2000_year_pdf_to_loacl.py [--downloaded_pdf_path DOWNLOADED_PDF_PATH] [--pdf_text_save_dir_path PDF_TEXT_SAVE_DIR_PATH]
+
+  * `--downloaded_pdf_path DOWNLOADED_PDF_PATH` : 下载的pdf文件位置，默认"./download_pdf"
+  * `--pdf_text_save_dir_path PDF_TEXT_SAVE_DIR_PATH` : 保存的pdf中text文件的位置，默认"./pdf_text"
