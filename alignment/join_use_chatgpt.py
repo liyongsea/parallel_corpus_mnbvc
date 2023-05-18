@@ -1,3 +1,4 @@
+import datetime
 import os
 import time
 import json
@@ -48,6 +49,8 @@ def read_secret(relative_path, hint=''):
         print('current WORKDIR_ABSOLUTE:', WORKDIR_ABSOLUTE)
         raise
 
+class ContextLengthExceeded(Exception): pass
+class UnknownException(Exception): pass
 
 def chat(prompt: str):
     """主体，入参prompt是向chatgpt问的内容，debug_prompt是让它打印内容，production只打下标"""
@@ -102,10 +105,21 @@ Here is the input text:
                 # "max_tokens": 4000 - int(tokens * 1.3)
             }
         )
-    print(r.json())
+    j = r.json()
+    print(j)
     with open(my_path('chatgptoutputs.jsonl'), 'a', encoding='utf-8') as f: # 日志
         f.write(r.text)
-    return r.json()['choices'][0]['message']['content']
+    if 'error' in j:
+        err = j['error']
+        if 'code' in err and err['code'] == 'invalid_request_error':
+            raise ContextLengthExceeded(err['message'])
+        else:
+            raise UnknownException(err['message'])
+            # with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+            #     f.write(r.text)
+        
+
+    return j['choices'][0]['message']['content']
 
 def process_one_file_use_chatgpt(row: DatasetDict):
     inputs = row['en']
@@ -136,6 +150,19 @@ def process_one_file_use_chatgpt(row: DatasetDict):
         for retrytime in range(RETRY_TIME):
             try:
                 outputs = chat(input_batch)
+                with open(output_file_name, 'a', encoding='utf-8') as f:
+                    json.dump({'batch': batch_id, 'step': BATCH_STEP, 'input': input_batch, 'output': outputs}, f)
+                    f.write('\n')
+                break
+            except ContextLengthExceeded as e:
+                with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                    json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': BATCH_STEP, 'input': input_batch, 'exc': 'context_length_exceeded', 'msg': e.args}, f)
+                    f.write('\n')
+                break
+            except UnknownException as e:
+                with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                    json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': BATCH_STEP, 'input': input_batch, 'exc': 'unknown', 'msg': e.args}, f)
+                    f.write('\n')
                 break
             except KeyboardInterrupt:
                 print('interrupted by keyboard.')
@@ -147,9 +174,6 @@ def process_one_file_use_chatgpt(row: DatasetDict):
                 print(f'sleep for {SLEEP_TIME}s')
                 time.sleep(SLEEP_TIME)
         # Path()
-        with open(output_file_name, 'a', encoding='utf-8') as f:
-            json.dump({'batch': batch_id, 'step': BATCH_STEP, 'input': input_batch, 'output': outputs}, f)
-            f.write('\n')
             # f.write(make_banner(input_batch+'\nreq: '+str(i // BATCH_STEP)+'\nBS: '+str(BATCH_STEP))+ outputs + PAGINATION_TOKEN)
 
         print(f'sleep for {SLEEP_TIME}s')
