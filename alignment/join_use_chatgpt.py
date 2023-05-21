@@ -137,19 +137,35 @@ def clearup_output(raw_output_from_chatgpt: str) -> list[str]:
     return list(filter(lambda x: len(x.strip()), raw_output_from_chatgpt.splitlines()))
 
 def likelyin(s1, s2):
+    """chatgpt并不是非常听话，会自己去噪或者补全，所以需要一些模糊处理来匹配相似字符串。
+    本函数判断s2是否疑似包含s1
+    """
     if s1 in s2:
         return True
-    offset = 19968 # 直接跑太慢，这里拆单词提速
+    if len(s1) < 20: # 短的直接用子串（序列太危险）
+        if pylcs.lcs_string_length(s1, s2) / len(s1) > 0.92:
+            return True
+        return False
+
+    offset = 19968 # 长的直接跑太慢，这里拆单词提速
     dic = {}
     n1 = []
+    n1len = []
     n2 = []
     for i in s1.split():
         n1.append(chr(offset+dic.setdefault(i, len(dic))))
+        n1len.append(len(i))
     for i in s2.split():
-        n2.append(chr(offset+dic.setdefault(i, len(dic))))
+        if i in dic: # 为子序列写的优化
+            n2.append(chr(offset+dic.setdefault(i, len(dic))))
     n1 = ''.join(n1)
     n2 = ''.join(n2)
-    if pylcs.lcs_sequence_length(n1, n2) / len(n1) > 0.83:
+    idxs = pylcs.lcs_string_idx(n1, n2)
+    tot = 0
+    for token, score in zip(idxs, n1len):
+        if token != -1:
+            tot += score
+    if tot / sum(n1len) > 0.92:
         return True
     return False
 
@@ -214,6 +230,9 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                 last[0] = construct_backline(outputlines[-1], batch)
             else:
                 last[0] = ''
+            # lineid = visited[batch_id]['r']
+            prvlineid = lineid - last[0].count('\n') + 1
+
             continue
 
         # done = False
@@ -228,7 +247,7 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                     last[0] = construct_backline(outputlines[-1], batch)
                 else:
                     last[0] = ''
-                prvlineid = lineid
+                prvlineid = lineid - last[0].count('\n') + 1
                 break
             except ContextLengthExceeded as e:
                 with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
@@ -321,18 +340,25 @@ def post_process(row: DatasetDict):
     
     obatches = [] # output batches
     ibatches = []
+    ibatchesl = []
+    ibatchesr = []
+
     with open(output_file_name, 'r', encoding='utf-8') as f:
-        for i in f.read().splitlines():
-            j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本
-            obatches.append(list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines())))
+        flines = f.read().splitlines()
+        for p, i in enumerate(flines):
+            j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本 l(int):左边界行号，上次处理的 r(int):右边界行号
+            obatch = list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines()))
+            if p != len(flines) - 1:
+                obatch.pop()
+            obatches.append(obatch)
             ibatches.append(list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines())))
-        
+            ibatchesl.append(j)
 
     br = set()
     for ibatch, obatch in zip(ibatches, obatches):
         ibatchlines = set(ibatch)
         for oline in obatch:
-            if 'The European Union has repeatedly called on all States to adhere' in oline:
+            if 'II. Activities of the Office of the United Nations High Commissioner' in oline:
                 print('breakline1')
             br_id = [] # breakline id to be eliminated
             for prevlineid, nextline in enumerate(ilines[1:]):
@@ -341,6 +367,8 @@ def post_process(row: DatasetDict):
                     # back_few_lines = ibatch[-5:]
                     # for l in back_few_lines
                     continue
+                if 'II. Activities of the Office of the United Nations High Commissioner' in nextline:
+                    print('breakline2')
                 if likelyin(prevline, oline) and likelyin(nextline, oline):
                     br_id.append(prevlineid)
 
