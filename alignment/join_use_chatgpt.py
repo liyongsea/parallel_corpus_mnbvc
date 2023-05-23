@@ -20,6 +20,9 @@ SLEEP_TIME = 0
 OPENAI_TOKENS = [
 ]
 
+NOISES = [
+    'Note: The input and output texts have the same content, but the output has been corrected for breaks and spacing as specified in the task.'
+]
 def cat(*args): 
     return '/'.join(args)
 
@@ -110,7 +113,7 @@ def chat(prompt: str):
                     {"role": "user", "content": inputs},
                     {"role": "assistant", "content": 'Output:\n'}
                     ],
-                # "temperature": 0, 
+                "temperature": 0, 
                 # "max_tokens": 4000 - int(tokens * 1.3)
             }
         )
@@ -176,7 +179,7 @@ processed_counter = 0
 def process_one_file_use_chatgpt2(row: DatasetDict):
     global processed_counter
     processed_counter += 1
-    if processed_counter > 10:
+    if processed_counter > 20:
         return
 
     inputs = row['en'].replace('\ufffe', '-')
@@ -204,14 +207,12 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
             tmp = (buf + '\n' if len(buf)>0 else '') + line
             tks = enc.encode(tmp) # 如果能保证每行加起来等于总的，那么可以改写成O(n)的
             if len(tks) >= MAX_TOKEN_COUNT:
-                yield buf, lineid
+                yield buf, lineid # 本行还没加上，所以是开区间
                 l0 = last[0]
                 tmp = (l0 + '\n' if len(l0)>0 else '') + line
             buf = tmp
         if buf:
             yield buf, lineid
-
-
 
     def construct_backline(output_backline: str, input_batch: list[str]) -> str:
         back_buf = []
@@ -328,7 +329,6 @@ def post_process(row: DatasetDict):
         # aid, a1, a2 = nw.get_alignment_strings_and_indices(a1, a2)
         # if sum(map(lambda x: len(x.strip()), a1)) / len(s1) > 0.88:
             # return True
-
     from loguru import logger
     logger.add(open('log.txt', 'a'))
     inputs = row['en'].replace('\ufffe', '-')
@@ -338,45 +338,97 @@ def post_process(row: DatasetDict):
     if not os.path.exists(output_file_name):
         return
     
+    if rec == '448094':
+        print('bp1')
     obatches = [] # output batches
     ibatches = []
     ibatchesl = []
     ibatchesr = []
+    br = set()
+
 
     with open(output_file_name, 'r', encoding='utf-8') as f:
         flines = f.read().splitlines()
         for p, i in enumerate(flines):
             j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本 l(int):左边界行号，上次处理的 r(int):右边界行号
             obatch = list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines()))
+            r = j['r']
             if p != len(flines) - 1:
                 obatch.pop()
+                r -= 1
             obatches.append(obatch)
-            ibatches.append(list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines())))
-            ibatchesl.append(j)
+            ibatch = list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines()))
+            ibatches.append(ibatch)
+            ibatchesl.append(j['l'])
+            ibatchesr.append(j['r'])
 
-    br = set()
-    for ibatch, obatch in zip(ibatches, obatches):
-        ibatchlines = set(ibatch)
-        for oline in obatch:
-            if 'II. Activities of the Office of the United Nations High Commissioner' in oline:
-                print('breakline1')
-            br_id = [] # breakline id to be eliminated
-            for prevlineid, nextline in enumerate(ilines[1:]):
-                prevline = ilines[prevlineid]
-                if nextline not in ibatchlines or prevline not in ibatchlines:
-                    # back_few_lines = ibatch[-5:]
-                    # for l in back_few_lines
-                    continue
-                if 'II. Activities of the Office of the United Nations High Commissioner' in nextline:
-                    print('breakline2')
-                if likelyin(prevline, oline) and likelyin(nextline, oline):
-                    br_id.append(prevlineid)
+            # ibatchlines = set(ibatch)
+            ilineids = [] # 取原行下标
+            while r >= 0 and ibatch and ilines[r] == ibatch[-1]:
+                ilineids.append(r)
+                r -= 1
+                ibatch.pop()
+            
+            ilineids.reverse()
+            ibuf = [] # 输入token
+            ibufg = [] # 输入buffer的行号（分组号）
+            obuf = []
+            obufg = []
+            # 手写的token转换，优化lcs的效率，这里换成中文字形式编码这些token，只判等
+            offset = 19968 # 中文unicode起点
+            dic = {}
+            for ilineid in ilineids:
+                iline = ilines[ilineid]
+                for i in iline.split():
+                    ibuf.append(chr(offset+dic.setdefault(i, len(dic))))
+                    ibufg.append(ilineid)
+            
+            for olineid, oline in enumerate(obatch):
+                for i in oline.split():
+                    if i in dic: # 为子序列写的优化
+                        obuf.append(chr(offset + dic[i]))
+                        obufg.append(olineid)
 
-            # 对br_id求最长连续子序列
-            # if br_id:
-            #     l, r = longest_adjacent_subsequence(br_id)
-            #     br = br.union(br_id[l: r+1])
-            br = br.union(br_id)
+            n1 = ''.join(ibuf)
+            n2 = ''.join(obuf)
+            print(f'n1:{len(n1)}, n2:{len(n2)}')
+            idxs = pylcs.lcs_sequence_idx(n1, n2)
+            d = {}
+            for iidx, oidx in enumerate(idxs):
+                if oidx != -1:
+                    ogroup = obufg[oidx]
+                    igroup = ibufg[iidx]
+                    d.setdefault(ogroup, set()).add(igroup)
+            for igroups in d.values():
+                for igroup in igroups:
+                    if igroup + 1 in igroups:
+                        br.add(igroup)
+
+
+
+
+    # for ibatch, obatch in zip(ibatches, obatches):
+    #     ibatchlines = set(ibatch)
+    #     for oline in obatch:
+    #         if 'II. Activities of the Office of the United Nations High Commissioner' in oline:
+    #             print('breakline1')
+    #         br_id = [] # breakline id to be eliminated
+    #         for prevlineid, nextline in enumerate(ilines[1:]):
+    #             prevline = ilines[prevlineid]
+    #             if nextline not in ibatchlines or prevline not in ibatchlines:
+    #                 # back_few_lines = ibatch[-5:]
+    #                 # for l in back_few_lines
+    #                 continue
+    #             if 'II. Activities of the Office of the United Nations High Commissioner' in nextline:
+    #                 print('breakline2')
+    #             if likelyin(prevline, oline) and likelyin(nextline, oline):
+    #                 br_id.append(prevlineid)
+
+    #         # 对br_id求最长连续子序列
+    #         # if br_id:
+    #         #     l, r = longest_adjacent_subsequence(br_id)
+    #         #     br = br.union(br_id[l: r+1])
+    #         br = br.union(br_id)
             
     concated = []
     for lineid, iline in enumerate(ilines):
