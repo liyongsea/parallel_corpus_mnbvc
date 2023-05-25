@@ -3,6 +3,7 @@ from itertools import chain
 import os
 import time
 import json
+from typing import Tuple
 
 import pylcs
 
@@ -37,6 +38,13 @@ def use_proxy():
     socks.set_default_proxy(socks.SOCKS5, '127.0.0.1', 7890)
     socket.socket = socks.socksocket
 
+def reset_proxy():
+    import socks
+    import socket
+    socks.set_default_proxy()
+    socket.socket = socks.socksocket
+
+
 def read_secret(relative_path, hint=''):
     """隐私文件缓存，之后用环境变量替换"""
     relative_path += '.secret'
@@ -59,7 +67,9 @@ def read_secret(relative_path, hint=''):
 class ContextLengthExceeded(Exception): pass
 class UnknownException(Exception): pass
 
-debug_prompt_engineering = '''I need your help to solve a breakline elimination problem,
+def echo_prompt(input_content: str): 
+    return [
+        {'role': 'user','content':'''I need your help to solve a breakline elimination problem,
 given some text exported from PDF, 
 some breaklines may split the text as meaningful paragraphs but others could separate them unexpectly,
 in this case, you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces,
@@ -74,30 +84,44 @@ do not answer any other word except the task output,
 do not add any characters to the end of the task output.
 Here is the input text:
 
-'''
-production_prompt_engineering = '''I need your help to solve a breakline elimination problem,
-given some text exported from PDF, 
-some breakline may split the text as meaningful paragraphs but others could separate them unexpectly,
-in this case, you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces.
-leave the indexing information and some lines that can not form a paragragh as it is, 
-do not answer any other word except the task output,
-do not echo the processed text, 
-just tell me the indexes of the breakline symbol you replaced with spaces, 
-assume the first breakline symbol has the index 0,
-and please separate the indices by comma.
-Do not answer any characters except the comma separated index numbers.
-Here is the input text:
-'''
+''' + input_content},
+        {"role": "assistant", "content": 'Output:\n'}
+    ]
+
+def echo_prompt2(input_content: str): 
+    return [
+        {'role': 'user', 'content':'''Your task is to solve a breakline elimination problem for text exported from PDF. The input may contain unexpected breaklines that split paragraphs, and you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces. You should leave some lines that cannot form a paragraph as they are.
+
+Please note that you should only determine which breaklines to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
+
+Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary breaklines.
+    '''},
+        {"role": "assistant", "content": 'Please provide your text.'},
+        {"role": "user", "content": input_content},
+        {"role": "assistant", "content": 'Output:\n'}
+    ]
+# index_prompt = '''I need your help to solve a breakline elimination problem,
+# given some text exported from PDF, 
+# some breakline may split the text as meaningful paragraphs but others could separate them unexpectly,
+# in this case, you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces.
+# leave the indexing information and some lines that can not form a paragragh as it is, 
+# do not answer any other word except the task output,
+# do not echo the processed text, 
+# just tell me the indexes of the breakline symbol you replaced with spaces, 
+# assume the first breakline symbol has the index 0,
+# and please separate the indices by comma.
+# Do not answer any characters except the comma separated index numbers.
+# Here is the input text:
+# '''
 
 def chat(prompt: str):
     """主体，入参prompt是向chatgpt问的内容，debug_prompt是让它打印内容，production只打下标"""
 
     import requests
     k = read_secret('openai_token')
-    inputs = debug_prompt_engineering + prompt
     # inputs = production_prompt_engineering + prompt
-    tokens = len(inputs.split())
-    print('tokens len:', tokens)
+    # tokens = len(inputs.split())
+    # print('tokens len:', tokens)
     r = requests.post(
         # "https://api.openai.com/v1/chat/completions",
         "https://openai-proxy-syhien.pages.dev/v1/chat/completions",
@@ -109,11 +133,8 @@ def chat(prompt: str):
                 # "model": "text-davinci-003",
                 "model": "gpt-3.5-turbo",
                 # "model": "gpt-4",
-                "messages": [
-                    {"role": "user", "content": inputs},
-                    {"role": "assistant", "content": 'Output:\n'}
-                    ],
-                "temperature": 0, 
+                "messages": echo_prompt2(prompt),
+                # "temperature": 0, 
                 # "max_tokens": 4000 - int(tokens * 1.3)
             }
         )
@@ -174,15 +195,10 @@ def likelyin(s1, s2):
 
 import tiktoken
 enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
-processed_counter = 0
 
 def process_one_file_use_chatgpt2(row: DatasetDict):
-    global processed_counter
-    processed_counter += 1
-    if processed_counter > 20:
-        return
-
     inputs = row['en'].replace('\ufffe', '-')
+    input_lines = inputs.splitlines() 
     rec = row['record']
     visited = {}
 
@@ -199,82 +215,121 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                 if infos['step'] == MAX_TOKEN_COUNT:
                     visited[infos['batch']] = infos
 
-    last: list[str] = ['']
-    def gen_batch():
-        """last[0]用于传递上次没分段出来的文本"""
+    # last: list[str] = ['']
+    def gen_batch(begin_lineid: int):
+        """从begin_lineid开始拿一个batch"""
+        assert begin_lineid < len(input_lines)
         buf = ''
-        for lineid, line in enumerate(inputs.splitlines()):
+        for lineid in range(begin_lineid, len(input_lines)):
+            line = input_lines[lineid]
             tmp = (buf + '\n' if len(buf)>0 else '') + line
             tks = enc.encode(tmp) # 如果能保证每行加起来等于总的，那么可以改写成O(n)的
             if len(tks) >= MAX_TOKEN_COUNT:
-                yield buf, lineid # 本行还没加上，所以是开区间
-                l0 = last[0]
-                tmp = (l0 + '\n' if len(l0)>0 else '') + line
+                return buf, lineid + begin_lineid # 本行还没加上，所以是开区间
             buf = tmp
         if buf:
-            yield buf, lineid
+            return buf, lineid + begin_lineid + 1
 
-    def construct_backline(output_backline: str, input_batch: list[str]) -> str:
-        back_buf = []
-        for backline in reversed(input_batch.splitlines()):
-            if not likelyin(backline, output_backline):
-                break
-            back_buf.append(backline)
-        return '\n'.join(reversed(back_buf))
+    # def construct_backline(output_backline: str, input_batch: list[str]) -> str:
+    #     back_buf = []
+    #     for backline in reversed(input_batch.splitlines()):
+    #         if not likelyin(backline, output_backline):
+    #             break
+    #         back_buf.append(backline)
+    #     return '\n'.join(reversed(back_buf))
 
-    prvlineid = 0
-    for batch_id, (batch, lineid) in enumerate(gen_batch()):
+    # def process_output(output_raw: str):
+
+
+    # prvlineid = 0
+    todo_lineid = 0
+    batch_id = 0
+
+    while todo_lineid < len(input_lines):
+        batch, lineid = gen_batch(todo_lineid)
+
+    # for batch_id, (batch, lineid) in enumerate(gen_batch()):
         if batch_id in visited:
-            outputs = visited[batch_id]['output']
-            outputlines = clearup_output(outputs)
-            if len(outputlines) > 1:
-                last[0] = construct_backline(outputlines[-1], batch)
-            else:
-                last[0] = ''
+            todo_lineid = visited[batch_id]['r'] + 1
+            # outputs = visited[batch_id]['output']
+            # outputlines = clearup_output(outputs)
+
+            # align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
+            # if len(align_map) > 1:
+            #     align_map.pop()
+            
+            # l = max(chain())
+
+            # if len(outputlines) > 1:
+            #     last[0] = construct_backline(outputlines[-1], batch)
+            # else:
+            #     last[0] = ''
             # lineid = visited[batch_id]['r']
-            prvlineid = lineid - last[0].count('\n') + 1
+            # prvlineid = lineid - last[0].count('\n') + 1
 
-            continue
+        else:
+            for retrytime in range(RETRY_TIME):
+                try:
+                    outputs = chat(batch)
+                    outputlines = clearup_output(outputs)
 
-        # done = False
-        for retrytime in range(RETRY_TIME):
-            try:
-                outputs = chat(batch)
-                with open(output_file_name, 'a', encoding='utf-8') as f:
-                    json.dump({'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'l': prvlineid, 'r': lineid, 'input': batch, 'output': outputs}, f)
-                    f.write('\n')
-                outputlines = clearup_output(outputs)
-                if len(outputlines) > 1:
-                    last[0] = construct_backline(outputlines[-1], batch)
-                else:
-                    last[0] = ''
-                prvlineid = lineid - last[0].count('\n') + 1
-                break
-            except ContextLengthExceeded as e:
-                with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                    json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'context_length_exceeded', 'msg': e.args}, f)
-                    f.write('\n')
-                return # 整个不能要了
-                # break
-            except UnknownException as e:
-                with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                    json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
-                    f.write('\n')
-                return # 整个不能要了
-            except KeyboardInterrupt:
-                print('interrupted by keyboard.')
-                exit(0)
-            except Exception as e:
-                print('retry:', retrytime, e)
-                if retrytime == RETRY_TIME - 1:
-                    raise
-                print(f'sleep for {SLEEP_TIME}s')
-                time.sleep(SLEEP_TIME)
-        # Path()
+                    align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
+                    if len(align_map) > 1:
+                        align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
+
+                    last_input_lineid = max(chain(*align_map.values()))
+                    todo_lineid = last_input_lineid + 1
+                    # last[0] = '\n'.join(ilines[last_input_lineid + 1:])
+
+                    input_line_offset = lineid - len(irate)
+
+                    br = []
+                    for igroups in align_map.values():
+                        for igroup in igroups:
+                            if igroup + 1 in igroups:
+                                br.append(igroup + input_line_offset)
+                    br.sort()
+                    
+                    with open(output_file_name, 'a', encoding='utf-8') as f:
+                        json.dump({
+                            'batch': batch_id, 
+                            'step': MAX_TOKEN_COUNT, 
+                            'l': min(chain(*align_map.values())), 
+                            'r': last_input_lineid, 
+                            'input': batch, 
+                            'output': outputs,
+                            'br': br
+                            }, f)
+                        f.write('\n')
+
+                    break
+                except ContextLengthExceeded as e:
+                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'context_length_exceeded', 'msg': e.args}, f)
+                        f.write('\n')
+                    return # 整个不能要了
+                    # break
+                except UnknownException as e:
+                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
+                        f.write('\n')
+                    return # 整个不能要了
+                except KeyboardInterrupt:
+                    print('interrupted by keyboard.')
+                    exit(0)
+                except Exception as e:
+                    print('retry:', retrytime, e)
+                    if retrytime == RETRY_TIME - 1:
+                        raise
+                    print(f'sleep for {SLEEP_TIME}s')
+                    time.sleep(SLEEP_TIME)
             # f.write(make_banner(input_batch+'\nreq: '+str(i // BATCH_STEP)+'\nBS: '+str(BATCH_STEP))+ outputs + PAGINATION_TOKEN)
 
-        print(f'sleep for {SLEEP_TIME}s')
-        time.sleep(SLEEP_TIME)
+            print(f'sleep for {SLEEP_TIME}s')
+            time.sleep(SLEEP_TIME)
+
+        batch_id += 1
+        
 
 
 def read_int(s: str) -> int:
@@ -319,6 +374,86 @@ def longest_adjacent_subsequence(li: list[int]):
         mr = r
         msiz = siz
     return ml, mr
+
+def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> Tuple[dict[int, set[int]], list[float], list[float]]:
+    """将ibatch每行的单词用最长公共子序列对齐到obatch每行的单词中。
+    
+    Args:
+        ibatch(str): 输入的一段话
+        obatch(str): chatgpt给对齐好的一段话
+    
+    Returns:
+        mapping(dict[int, set[int]]): 输出行号对应输入的行号
+        irate(list[float]): 输入每行的匹配率（匹配的单词总长度/本行总单词总长度）
+        orate(list[float]): 输出每行的匹配率
+    """
+    if isinstance(ibatch, str):
+        ibatch = ibatch.splitlines()
+    if isinstance(obatch, str):
+        obatch = obatch.splitlines()
+    offset = 19968
+    dic = {}
+    
+    ibuf = [] # 输入token
+    ilen = []
+
+    obuf = []
+    olen = []
+    # 手写的token转换，优化lcs的效率，这里换成中文字形式编码这些token，只判等
+    offset = 19968 # 中文unicode起点
+    dic = {}
+    for ilineid, iline in enumerate(ibatch):
+        sp = iline.split()
+        ilen.append(sum(map(len, sp)))
+        for i in sp:
+            ibuf.append((
+                chr(offset + dic.setdefault(i, len(dic))),
+                len(i),
+                ilineid,
+                ))
+    
+    for olineid, oline in enumerate(obatch):
+        sp = oline.split()
+        olen.append(sum(map(len, sp)))
+        for i in oline.split():
+            if i in dic: # 为子序列写的优化
+                obuf.append((
+                    chr(offset + dic[i]),
+                    len(i),
+                    olineid,
+                    ))
+    
+
+    irate = [0 for _ in ilen]
+    orate = [0 for _ in olen]
+
+    n1 = ''.join(map(lambda x: x[0], ibuf))
+    n2 = ''.join(map(lambda x: x[0], obuf))
+    # print(f'n1:{len(n1)}, n2:{len(n2)}')
+    idxs = pylcs.lcs_sequence_idx(n1, n2)
+    mapping = {}
+    for iidx, oidx in enumerate(idxs):
+        if oidx != -1:
+            _, iklen, ikgroup = ibuf[iidx]
+            _, oklen, okgroup = obuf[oidx]
+            mapping.setdefault(okgroup, set()).add(ikgroup)
+            irate[ikgroup] += iklen
+            orate[okgroup] += oklen
+    
+    for p, i in enumerate(irate):
+        irate[p] = i / ilen[p]
+    for p, i in enumerate(orate):
+        orate[p] = i / olen[p]
+
+    # 额外处理：匹配率低于50%的olineid不要
+
+    for p, i in enumerate(orate):
+        if i < 0.5:
+            mapping.pop(p)
+
+    return mapping, irate, orate
+
+
 
 def post_process(row: DatasetDict):
     """后处理，prompt用输出py样式列表的方法"""
@@ -449,13 +584,16 @@ def post_process(row: DatasetDict):
 
 
 if __name__ == "__main__":
-    while (cmd := input('1: chatgpt; 2: post process >>>')) not in ('1', '2'):
-        print('invalid input')
+    cmd = '1'
+    # while (cmd := input('1: chatgpt; 2: post process >>>')) not in ('1', '2'):
+    #     print('invalid input')
+    use_proxy()
     dataset = load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED')
+    dataset = dataset['train'].select(range(20, 30))
+    reset_proxy()
     if cmd == '1':
     # cmd = input('use proxy? (default settings is socks5://localhost:7890) please answer(y/N):')
     # if cmd.lower() == 'y':
-    # use_proxy()
         dataset.map(process_one_file_use_chatgpt2)
     else:
         dataset.map(post_process)
