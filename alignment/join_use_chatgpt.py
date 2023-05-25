@@ -4,6 +4,7 @@ import os
 import time
 import json
 from typing import Tuple
+import traceback
 
 import pylcs
 
@@ -225,10 +226,10 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
             tmp = (buf + '\n' if len(buf)>0 else '') + line
             tks = enc.encode(tmp) # 如果能保证每行加起来等于总的，那么可以改写成O(n)的
             if len(tks) >= MAX_TOKEN_COUNT:
-                return buf, lineid + begin_lineid # 本行还没加上，所以是开区间
+                return buf, lineid # 本行还没加上，所以是开区间
             buf = tmp
         if buf:
-            return buf, lineid + begin_lineid + 1
+            return buf, lineid + 1
 
     # def construct_backline(output_backline: str, input_batch: list[str]) -> str:
     #     back_buf = []
@@ -251,22 +252,27 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
     # for batch_id, (batch, lineid) in enumerate(gen_batch()):
         if batch_id in visited:
             todo_lineid = visited[batch_id]['r'] + 1
-            # outputs = visited[batch_id]['output']
+            # outputs = visited[batch_id]['output'] 
             # outputlines = clearup_output(outputs)
 
             # align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
             # if len(align_map) > 1:
-            #     align_map.pop()
+            #     align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
+
+            # # last[0] = '\n'.join(ilines[last_input_lineid + 1:])
+
+            # input_line_offset = lineid - len(batch.splitlines())
+
+            # last_input_lineid = max(chain(*align_map.values())) + input_line_offset
+            # todo_lineid = last_input_lineid + 1 
+
+            # br = []
+            # for igroups in align_map.values():
+            #     for igroup in igroups:
+            #         if igroup + 1 in igroups:
+            #             br.append(igroup + input_line_offset)
+            # br.sort()
             
-            # l = max(chain())
-
-            # if len(outputlines) > 1:
-            #     last[0] = construct_backline(outputlines[-1], batch)
-            # else:
-            #     last[0] = ''
-            # lineid = visited[batch_id]['r']
-            # prvlineid = lineid - last[0].count('\n') + 1
-
         else:
             for retrytime in range(RETRY_TIME):
                 try:
@@ -277,11 +283,12 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                     if len(align_map) > 1:
                         align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
 
-                    last_input_lineid = max(chain(*align_map.values()))
-                    todo_lineid = last_input_lineid + 1
                     # last[0] = '\n'.join(ilines[last_input_lineid + 1:])
 
-                    input_line_offset = lineid - len(irate)
+                    input_line_offset = lineid - len(batch.splitlines())
+
+                    last_input_lineid = max(chain(*align_map.values())) + input_line_offset
+                    todo_lineid = last_input_lineid + 1 
 
                     br = []
                     for igroups in align_map.values():
@@ -587,10 +594,14 @@ if __name__ == "__main__":
     cmd = '1'
     # while (cmd := input('1: chatgpt; 2: post process >>>')) not in ('1', '2'):
     #     print('invalid input')
-    use_proxy()
-    dataset = load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED')
-    dataset = dataset['train'].select(range(20, 30))
-    reset_proxy()
+    # use_proxy()
+    # dataset = load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED')
+    # dataset.save_to_disk(my_path())
+    import datasets
+    dataset = datasets.load_from_disk(my_path())
+    # dataset = dataset['train'].select(range(20, 30))
+    dataset = dataset.select(range(20, 30))
+    # reset_proxy()
     if cmd == '1':
     # cmd = input('use proxy? (default settings is socks5://localhost:7890) please answer(y/N):')
     # if cmd.lower() == 'y':
