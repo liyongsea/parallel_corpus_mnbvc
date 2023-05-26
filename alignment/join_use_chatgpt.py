@@ -22,9 +22,9 @@ SLEEP_TIME = 0
 OPENAI_TOKENS = [
 ]
 
-NOISES = [
-    'Note: The input and output texts have the same content, but the output has been corrected for breaks and spacing as specified in the task.'
-]
+# NOISES = [
+#     'Note: The input and output texts have the same content, but the output has been corrected for breaks and spacing as specified in the task.'
+# ]
 def cat(*args): 
     return '/'.join(args)
 
@@ -139,8 +139,13 @@ def chat(prompt: str):
                 # "max_tokens": 4000 - int(tokens * 1.3)
             }
         )
-    j = r.json()
-    print(j)
+    try:
+        j = r.json()
+        print(j)
+    except json.JSONDecodeError:
+        j = json.loads('{' + r.text) # 有时候会漏前导'{'，尝试救回来
+        print('fixed j:', j)
+
     with open(my_path('chatgptoutputs.jsonl'), 'a', encoding='utf-8') as f: # 日志
         f.write(r.text)
     if 'error' in j:
@@ -252,19 +257,23 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
     # for batch_id, (batch, lineid) in enumerate(gen_batch()):
         if batch_id in visited:
             todo_lineid = visited[batch_id]['r'] + 1
-            # outputs = visited[batch_id]['output'] 
+            # outputs = visited[batch_id]['output']
             # outputlines = clearup_output(outputs)
 
             # align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
-            # if len(align_map) > 1:
-            #     align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
+            # input_line_offset = lineid - len(batch.splitlines()) # 第一行在本文件中的下标
+            # assert input_lines[input_line_offset] == batch.splitlines()[0]
+            # if lineid < len(input_lines):
+            #     if len(align_map) > 1:
+            #         align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
 
-            # # last[0] = '\n'.join(ilines[last_input_lineid + 1:])
+            #     last_input_lineid = max(chain(*align_map.values())) + input_line_offset
+            #     todo_lineid = last_input_lineid + 1 
+            # else:
+            #     # 已经做完了本文件
+            #     last_input_lineid = len(input_lines)
+            #     todo_lineid = len(input_lines)
 
-            # input_line_offset = lineid - len(batch.splitlines())
-
-            # last_input_lineid = max(chain(*align_map.values())) + input_line_offset
-            # todo_lineid = last_input_lineid + 1 
 
             # br = []
             # for igroups in align_map.values():
@@ -280,15 +289,19 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                     outputlines = clearup_output(outputs)
 
                     align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
-                    if len(align_map) > 1:
-                        align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
+                    input_line_offset = lineid - len(batch.splitlines()) # 第一行在本文件中的下标
+                    assert input_lines[input_line_offset] == batch.splitlines()[0]
+                    if lineid < len(input_lines):
+                        if len(align_map) > 1:
+                            align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
 
-                    # last[0] = '\n'.join(ilines[last_input_lineid + 1:])
+                        last_input_lineid = max(chain(*align_map.values())) + input_line_offset
+                        todo_lineid = last_input_lineid + 1 
+                    else:
+                        # 已经做完了本文件
+                        last_input_lineid = len(input_lines)
+                        todo_lineid = len(input_lines)
 
-                    input_line_offset = lineid - len(batch.splitlines())
-
-                    last_input_lineid = max(chain(*align_map.values())) + input_line_offset
-                    todo_lineid = last_input_lineid + 1 
 
                     br = []
                     for igroups in align_map.values():
@@ -301,10 +314,11 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                         json.dump({
                             'batch': batch_id, 
                             'step': MAX_TOKEN_COUNT, 
-                            'l': min(chain(*align_map.values())), 
+                            'l': min(chain(*align_map.values())) + input_line_offset, 
                             'r': last_input_lineid, 
                             'input': batch, 
                             'output': outputs,
+                            'offset': input_line_offset,
                             'br': br
                             }, f)
                         f.write('\n')
@@ -325,6 +339,7 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                     print('interrupted by keyboard.')
                     exit(0)
                 except Exception as e:
+                    traceback.print_exc()
                     print('retry:', retrytime, e)
                     if retrytime == RETRY_TIME - 1:
                         raise
@@ -453,10 +468,12 @@ def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> 
         orate[p] = i / olen[p]
 
     # 额外处理：匹配率低于50%的olineid不要
-
+    print(mapping)
+    print('orate', orate)
     for p, i in enumerate(orate):
         if i < 0.5:
-            mapping.pop(p)
+            if p in mapping:
+                mapping.pop(p)
 
     return mapping, irate, orate
 
@@ -493,58 +510,59 @@ def post_process(row: DatasetDict):
         flines = f.read().splitlines()
         for p, i in enumerate(flines):
             j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本 l(int):左边界行号，上次处理的 r(int):右边界行号
-            obatch = list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines()))
-            r = j['r']
-            if p != len(flines) - 1:
-                obatch.pop()
-                r -= 1
-            obatches.append(obatch)
-            ibatch = list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines()))
-            ibatches.append(ibatch)
-            ibatchesl.append(j['l'])
-            ibatchesr.append(j['r'])
+            br = br.union(j['br'])
+        #     obatch = list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines()))
+        #     r = j['r']
+        #     if p != len(flines) - 1:
+        #         obatch.pop()
+        #         r -= 1
+        #     obatches.append(obatch)
+        #     ibatch = list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines()))
+        #     ibatches.append(ibatch)
+        #     ibatchesl.append(j['l'])
+        #     ibatchesr.append(j['r'])
 
-            # ibatchlines = set(ibatch)
-            ilineids = [] # 取原行下标
-            while r >= 0 and ibatch and ilines[r] == ibatch[-1]:
-                ilineids.append(r)
-                r -= 1
-                ibatch.pop()
+        #     # ibatchlines = set(ibatch)
+        #     ilineids = [] # 取原行下标
+        #     while r >= 0 and ibatch and ilines[r] == ibatch[-1]:
+        #         ilineids.append(r)
+        #         r -= 1
+        #         ibatch.pop()
             
-            ilineids.reverse()
-            ibuf = [] # 输入token
-            ibufg = [] # 输入buffer的行号（分组号）
-            obuf = []
-            obufg = []
-            # 手写的token转换，优化lcs的效率，这里换成中文字形式编码这些token，只判等
-            offset = 19968 # 中文unicode起点
-            dic = {}
-            for ilineid in ilineids:
-                iline = ilines[ilineid]
-                for i in iline.split():
-                    ibuf.append(chr(offset+dic.setdefault(i, len(dic))))
-                    ibufg.append(ilineid)
+        #     ilineids.reverse()
+        #     ibuf = [] # 输入token
+        #     ibufg = [] # 输入buffer的行号（分组号）
+        #     obuf = []
+        #     obufg = []
+        #     # 手写的token转换，优化lcs的效率，这里换成中文字形式编码这些token，只判等
+        #     offset = 19968 # 中文unicode起点
+        #     dic = {}
+        #     for ilineid in ilineids:
+        #         iline = ilines[ilineid]
+        #         for i in iline.split():
+        #             ibuf.append(chr(offset+dic.setdefault(i, len(dic))))
+        #             ibufg.append(ilineid)
             
-            for olineid, oline in enumerate(obatch):
-                for i in oline.split():
-                    if i in dic: # 为子序列写的优化
-                        obuf.append(chr(offset + dic[i]))
-                        obufg.append(olineid)
+        #     for olineid, oline in enumerate(obatch):
+        #         for i in oline.split():
+        #             if i in dic: # 为子序列写的优化
+        #                 obuf.append(chr(offset + dic[i]))
+        #                 obufg.append(olineid)
 
-            n1 = ''.join(ibuf)
-            n2 = ''.join(obuf)
-            print(f'n1:{len(n1)}, n2:{len(n2)}')
-            idxs = pylcs.lcs_sequence_idx(n1, n2)
-            d = {}
-            for iidx, oidx in enumerate(idxs):
-                if oidx != -1:
-                    ogroup = obufg[oidx]
-                    igroup = ibufg[iidx]
-                    d.setdefault(ogroup, set()).add(igroup)
-            for igroups in d.values():
-                for igroup in igroups:
-                    if igroup + 1 in igroups:
-                        br.add(igroup)
+        #     n1 = ''.join(ibuf)
+        #     n2 = ''.join(obuf)
+        #     print(f'n1:{len(n1)}, n2:{len(n2)}')
+        #     idxs = pylcs.lcs_sequence_idx(n1, n2)
+        #     d = {}
+        #     for iidx, oidx in enumerate(idxs):
+        #         if oidx != -1:
+        #             ogroup = obufg[oidx]
+        #             igroup = ibufg[iidx]
+        #             d.setdefault(ogroup, set()).add(igroup)
+        #     for igroups in d.values():
+        #         for igroup in igroups:
+        #             if igroup + 1 in igroups:
+        #                 br.add(igroup)
 
 
 
