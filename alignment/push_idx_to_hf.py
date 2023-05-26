@@ -47,40 +47,63 @@ def read_secret(relative_path, hint=''):
         print('current WORKDIR_ABSOLUTE:', WORKDIR_ABSOLUTE)
         raise
 
-def get_br_indexes_from_alignmap(align_map: dict[int, set[int]]) -> list[int]:
-    br = []
-    for igroups in align_map.values():
-        for i in igroups:
-            if i + 1 in igroups:
-                br.append(i)
-    br.sort()
-    return br
+
 
 if __name__ == "__main__":
-    Path(my_path('converted')).mkdir(exist_ok=True)
     print(sys.argv)
     ap = ArgumentParser(prog=sys.argv[0])
     ap.add_argument('idx_directory', help='directory for idx files')
     args = ap.parse_args()
-    idx_map = {}
-    for i in os.listdir(args.idx_directory):
-        if i.endswith('.idx'):
-            rec = i.removesuffix('.idx')
-            with open(cat(args.idx_directory, i), 'r', encoding='utf-8') as f:
-                idx_map[rec] = map(int, f.read().split(','))
-
-    hf_tk = read_secret('hf_token')
-
     ds = get_and_cache_dataset()
 
-    data2Bupload = []
-    for i in ds.filter(lambda x: x['record'] in idx_map):
-        br_rev = [True for _ in i['en'].splitlines()]
-        for j in idx_map[i['record']]:
-            br_rev[j] = False
-        data2Bupload.append({'raw_text': i['en'], 'is_hard_breakline': br_rev})
+    dir = args.idx_directory
+
+    def convert_idx():
+        idx_map = {}
+        for i in os.listdir():
+            if i.endswith('.idx'):
+                rec = i.removesuffix('.idx')
+                with open(cat(dir, i), 'r', encoding='utf-8') as f:
+                    idx_map[rec] = map(int, f.read().split(','))
+        data2Bupload = []
+        for i in ds.filter(lambda x: x['record'] in idx_map):
+            br_rev = [True for _ in i['en'].splitlines()]
+            for j in idx_map[i['record']]:
+                br_rev[j] = False
+            data2Bupload.append({'record': i['record'], 'raw_text': i['en'], 'is_hard_linebreak': br_rev})
+        return data2Bupload
+
+    def convert_wr():
+        """临时代码，转换手标数据"""
+        import json
+        from get_labeled_index import lcs_sequence_alignment, get_br_indexes_from_alignmap
+        outputmap = {}
+        jmap = {}
+        for i in os.listdir(dir):
+            with open(cat(dir, i, 'output.txt'), 'r', encoding='utf-8') as f:
+                outputmap[i] = f.read()
+            with open(cat(dir, i, 'is_hard_line_break.json'), 'r', encoding='utf-8') as f:
+                jmap[i] = json.load(f)
+        data2Bupload = []
+        for i in ds.filter(lambda x: x['record'] in outputmap):
+            rec = i['record']
+            src = i['en']
+            align_map, _, _ = lcs_sequence_alignment(src, outputmap[rec])
+            br = get_br_indexes_from_alignmap(align_map)
+            br_rev = [True for _ in src.splitlines()]
+            for j in br:
+                br_rev[j] = False
+            # assert br_rev == jmap[rec] # 顺便测一下对齐脚本正确性
+            data2Bupload.append({'record': i['record'], 'raw_text': i['en'], 'is_hard_linebreak': br_rev})
+        return data2Bupload
+
+    data2Bupload = convert_idx()
+    hf_tk = read_secret('hf_token')
+
+
     # from helper import use_proxy
     # use_proxy()
     data2Bupload = datasets.Dataset.from_list(data2Bupload)
     data2Bupload.push_to_hub(repo_id='EN_PARAGRAPH_GPT_JOINED', split="train", token=hf_tk)
+    # data2Bupload.push_to_hub(repo_id='EN_PARAGRAPH_HUMAN_JOINED', split="train", token=hf_tk)
 
