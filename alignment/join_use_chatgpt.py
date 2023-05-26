@@ -9,18 +9,13 @@ import traceback
 import pylcs
 
 from pathlib import Path
-from datasets import load_dataset
 from datasets.dataset_dict import DatasetDict
 
 
-BATCH_STEP = 2048 # 一次性发给chatgpt多少字符，越多越好，但是尽量不要让它截断
 MAX_TOKEN_COUNT = 1400
 WORKDIR_ABSOLUTE = r'C:\Users\Administrator\Documents\parallel_corpus_mnbvc\alignment\bertalign' # 工作区绝对路径，实际使用换成.即可
 RETRY_TIME = 5
 SLEEP_TIME = 0
-
-OPENAI_TOKENS = [
-]
 
 # NOISES = [
 #     'Note: The input and output texts have the same content, but the output has been corrected for breaks and spacing as specified in the task.'
@@ -137,7 +132,8 @@ def chat(prompt: str):
                 "messages": echo_prompt2(prompt),
                 # "temperature": 0, 
                 # "max_tokens": 4000 - int(tokens * 1.3)
-            }
+            },
+            timeout=60*5 # 我们顶多等5分钟
         )
     try:
         j = r.json()
@@ -159,45 +155,13 @@ def chat(prompt: str):
     return j['choices'][0]['message']['content']
 
 async def aiochat(prompt: str):
-    """异步版本的chat"""
+    """异步版本的chat，还没开始写，但是对于这个任务来说并发请求很容易server error，我建议还是挂着串行搞"""
     import aiohttp
 
 
 def clearup_output(raw_output_from_chatgpt: str) -> list[str]:
     return list(filter(lambda x: len(x.strip()), raw_output_from_chatgpt.splitlines()))
 
-def likelyin(s1, s2):
-    """chatgpt并不是非常听话，会自己去噪或者补全，所以需要一些模糊处理来匹配相似字符串。
-    本函数判断s2是否疑似包含s1
-    """
-    if s1 in s2:
-        return True
-    if len(s1) < 20: # 短的直接用子串（序列太危险）
-        if pylcs.lcs_string_length(s1, s2) / len(s1) > 0.92:
-            return True
-        return False
-
-    offset = 19968 # 长的直接跑太慢，这里拆单词提速
-    dic = {}
-    n1 = []
-    n1len = []
-    n2 = []
-    for i in s1.split():
-        n1.append(chr(offset+dic.setdefault(i, len(dic))))
-        n1len.append(len(i))
-    for i in s2.split():
-        if i in dic: # 为子序列写的优化
-            n2.append(chr(offset+dic.setdefault(i, len(dic))))
-    n1 = ''.join(n1)
-    n2 = ''.join(n2)
-    idxs = pylcs.lcs_string_idx(n1, n2)
-    tot = 0
-    for token, score in zip(idxs, n1len):
-        if token != -1:
-            tot += score
-    if tot / sum(n1len) > 0.92:
-        return True
-    return False
 
 import tiktoken
 enc = tiktoken.encoding_for_model("gpt-3.5-turbo")
@@ -236,18 +200,6 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
         if buf:
             return buf, lineid + 1
 
-    # def construct_backline(output_backline: str, input_batch: list[str]) -> str:
-    #     back_buf = []
-    #     for backline in reversed(input_batch.splitlines()):
-    #         if not likelyin(backline, output_backline):
-    #             break
-    #         back_buf.append(backline)
-    #     return '\n'.join(reversed(back_buf))
-
-    # def process_output(output_raw: str):
-
-
-    # prvlineid = 0
     todo_lineid = 0
     batch_id = 0
 
@@ -328,13 +280,10 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                     with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
                         json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'context_length_exceeded', 'msg': e.args}, f)
                         f.write('\n')
-                    return # 整个不能要了
-                    # break
                 except UnknownException as e:
                     with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
                         json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
                         f.write('\n')
-                    return # 整个不能要了
                 except KeyboardInterrupt:
                     print('interrupted by keyboard.')
                     exit(0)
@@ -345,57 +294,12 @@ def process_one_file_use_chatgpt2(row: DatasetDict):
                         raise
                     print(f'sleep for {SLEEP_TIME}s')
                     time.sleep(SLEEP_TIME)
-            # f.write(make_banner(input_batch+'\nreq: '+str(i // BATCH_STEP)+'\nBS: '+str(BATCH_STEP))+ outputs + PAGINATION_TOKEN)
 
             print(f'sleep for {SLEEP_TIME}s')
             time.sleep(SLEEP_TIME)
 
         batch_id += 1
         
-
-
-def read_int(s: str) -> int:
-    """把s中所有数字拿出来"""
-    x = 0
-    is_read = 0
-    for c in s:
-        if c.isdigit():
-            x = x * 10 + int(c)
-            is_read = 1
-        else:
-            if is_read:
-                yield x
-            is_read = 0
-            x = 0
-    if is_read:
-        yield x
-
-def longest_adjacent_subsequence(li: list[int]):
-    """求最长连续+1子序列，返回区间的左下标和右下标"""
-    assert len(li) > 0
-    l = 0
-    r = 0
-    ml = 0
-    mr = 0
-    msiz = 0
-    for i, n in enumerate(li):
-        if n == li[r] + 1:
-            r = i
-        else:
-            siz = r-l+1
-            if siz > msiz:
-                ml = l
-                mr = r
-                msiz = siz
-            l = i
-            r = i
-
-    siz = r-l+1
-    if siz > msiz:
-        ml = l
-        mr = r
-        msiz = siz
-    return ml, mr
 
 def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> Tuple[dict[int, set[int]], list[float], list[float]]:
     """将ibatch每行的单词用最长公共子序列对齐到obatch每行的单词中。
@@ -467,11 +371,11 @@ def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> 
     for p, i in enumerate(orate):
         orate[p] = i / olen[p]
 
-    # 额外处理：匹配率低于50%的olineid不要
+    # 额外处理：匹配率低于60%的olineid不要
     print(mapping)
     print('orate', orate)
     for p, i in enumerate(orate):
-        if i < 0.5:
+        if i < 0.6:
             if p in mapping:
                 mapping.pop(p)
 
@@ -481,13 +385,6 @@ def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> 
 
 def post_process(row: DatasetDict):
     """后处理，prompt用输出py样式列表的方法"""
-    # from string2string.alignment import NeedlemanWunsch
-
-        # nw = NeedlemanWunsch()
-        # a1, a2 = nw.get_alignment(s1.split(), s2.split())
-        # aid, a1, a2 = nw.get_alignment_strings_and_indices(a1, a2)
-        # if sum(map(lambda x: len(x.strip()), a1)) / len(s1) > 0.88:
-            # return True
     from loguru import logger
     logger.add(open('log.txt', 'a'))
     inputs = row['en'].replace('\ufffe', '-')
@@ -497,12 +394,9 @@ def post_process(row: DatasetDict):
     if not os.path.exists(output_file_name):
         return
     
-    if rec == '448094':
-        print('bp1')
+    # if rec == '448094':
+        # print('bp1')
     obatches = [] # output batches
-    ibatches = []
-    ibatchesl = []
-    ibatchesr = []
     br = set()
 
 
@@ -511,85 +405,9 @@ def post_process(row: DatasetDict):
         for p, i in enumerate(flines):
             j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本 l(int):左边界行号，上次处理的 r(int):右边界行号
             br = br.union(j['br'])
-        #     obatch = list(filter(lambda x: len(x.strip()), j['output'].replace('\ufffe', '-').splitlines()))
-        #     r = j['r']
-        #     if p != len(flines) - 1:
-        #         obatch.pop()
-        #         r -= 1
-        #     obatches.append(obatch)
-        #     ibatch = list(filter(lambda x: len(x.strip()), j['input'].replace('\ufffe', '-').splitlines()))
-        #     ibatches.append(ibatch)
-        #     ibatchesl.append(j['l'])
-        #     ibatchesr.append(j['r'])
+            obatches.append(j['output'])
+            obatches.append('==========')
 
-        #     # ibatchlines = set(ibatch)
-        #     ilineids = [] # 取原行下标
-        #     while r >= 0 and ibatch and ilines[r] == ibatch[-1]:
-        #         ilineids.append(r)
-        #         r -= 1
-        #         ibatch.pop()
-            
-        #     ilineids.reverse()
-        #     ibuf = [] # 输入token
-        #     ibufg = [] # 输入buffer的行号（分组号）
-        #     obuf = []
-        #     obufg = []
-        #     # 手写的token转换，优化lcs的效率，这里换成中文字形式编码这些token，只判等
-        #     offset = 19968 # 中文unicode起点
-        #     dic = {}
-        #     for ilineid in ilineids:
-        #         iline = ilines[ilineid]
-        #         for i in iline.split():
-        #             ibuf.append(chr(offset+dic.setdefault(i, len(dic))))
-        #             ibufg.append(ilineid)
-            
-        #     for olineid, oline in enumerate(obatch):
-        #         for i in oline.split():
-        #             if i in dic: # 为子序列写的优化
-        #                 obuf.append(chr(offset + dic[i]))
-        #                 obufg.append(olineid)
-
-        #     n1 = ''.join(ibuf)
-        #     n2 = ''.join(obuf)
-        #     print(f'n1:{len(n1)}, n2:{len(n2)}')
-        #     idxs = pylcs.lcs_sequence_idx(n1, n2)
-        #     d = {}
-        #     for iidx, oidx in enumerate(idxs):
-        #         if oidx != -1:
-        #             ogroup = obufg[oidx]
-        #             igroup = ibufg[iidx]
-        #             d.setdefault(ogroup, set()).add(igroup)
-        #     for igroups in d.values():
-        #         for igroup in igroups:
-        #             if igroup + 1 in igroups:
-        #                 br.add(igroup)
-
-
-
-
-    # for ibatch, obatch in zip(ibatches, obatches):
-    #     ibatchlines = set(ibatch)
-    #     for oline in obatch:
-    #         if 'II. Activities of the Office of the United Nations High Commissioner' in oline:
-    #             print('breakline1')
-    #         br_id = [] # breakline id to be eliminated
-    #         for prevlineid, nextline in enumerate(ilines[1:]):
-    #             prevline = ilines[prevlineid]
-    #             if nextline not in ibatchlines or prevline not in ibatchlines:
-    #                 # back_few_lines = ibatch[-5:]
-    #                 # for l in back_few_lines
-    #                 continue
-    #             if 'II. Activities of the Office of the United Nations High Commissioner' in nextline:
-    #                 print('breakline2')
-    #             if likelyin(prevline, oline) and likelyin(nextline, oline):
-    #                 br_id.append(prevlineid)
-
-    #         # 对br_id求最长连续子序列
-    #         # if br_id:
-    #         #     l, r = longest_adjacent_subsequence(br_id)
-    #         #     br = br.union(br_id[l: r+1])
-    #         br = br.union(br_id)
-            
     concated = []
     for lineid, iline in enumerate(ilines):
         if lineid - 1 in br:
@@ -600,25 +418,33 @@ def post_process(row: DatasetDict):
     print(len(concated))
 
     with open(my_path('post', f'{rec}.src'), 'w', encoding='utf-8') as f:
-        f.write('\n'.join(chain(*obatches)))
+        f.write('\n'.join(obatches))
     with open(my_path('post', f'{rec}.txt'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(concated))
     with open(my_path('post', f'{rec}.idx'), 'w', encoding='utf-8') as f:
         f.write(','.join(map(str, list(sorted(br)))))
 
-
+def get_and_cache_dataset():
+    """把hf的东西cache到工作目录，防止dns阻断导致不能验证本地缓存"""
+    import datasets
+    try:
+        dataset = datasets.load_from_disk(my_path())
+        return dataset
+    except:
+        dataset = datasets.load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED', split='train')
+        dataset.save_to_disk(my_path())
+        return dataset
 
 if __name__ == "__main__":
-    cmd = '1'
-    # while (cmd := input('1: chatgpt; 2: post process >>>')) not in ('1', '2'):
-    #     print('invalid input')
+    # cmd = '1'
+    while (cmd := input('1: chatgpt; 2: post process >>>')) not in ('1', '2'):
+        print('invalid input')
     # use_proxy()
-    # dataset = load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED')
+    # dataset = load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED', split='train')
     # dataset.save_to_disk(my_path())
-    import datasets
-    dataset = datasets.load_from_disk(my_path())
+    dataset = get_and_cache_dataset()
     # dataset = dataset['train'].select(range(20, 30))
-    dataset = dataset.select(range(20, 30))
+    dataset = dataset.select(range(50, 200))
     # reset_proxy()
     if cmd == '1':
     # cmd = input('use proxy? (default settings is socks5://localhost:7890) please answer(y/N):')
