@@ -102,13 +102,17 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
 
 class AfterManualSegmentedPunctuationAndCapitalLetterDetector(HardLineBreakDetector):
     def detect(self, raw_text, manually_segmented_text):
+        """
+        人工分段后与原文本字符串长度不相同，所以新构建了这个方法
+        """
         raw_text_lines = raw_text.splitlines()
-        
-        is_hard_line_break = []
 
         # Debug used
         last_text = ""
+
+        is_hard_line_break = []
         tmp = manually_segmented_text
+
         for index, line in enumerate(raw_text_lines):
             output_text_split = tmp.split(line, 1)
             
@@ -117,7 +121,7 @@ class AfterManualSegmentedPunctuationAndCapitalLetterDetector(HardLineBreakDetec
                 is_hard_line_break.append(False)
                 break
             
-            
+            # 如果output_text_split长度不等2，则认为raw文本中的这一行在人工成断的文章中是缺失/错误的
             if len(output_text_split) != 2:
                 print("-----------------")
                 print(f"last_text: {last_text}")
