@@ -98,6 +98,47 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
             else:
                 breaks.append(False)  # Soft break
         return breaks
+    
+
+class AfterManualSegmentedPunctuationAndCapitalLetterDetector(HardLineBreakDetector):
+    def detect(self, raw_text, manually_segmented_text):
+        raw_text_lines = raw_text.splitlines()
+        
+        is_hard_line_break = []
+
+        # Debug used
+        last_text = ""
+        tmp = manually_segmented_text
+        for index, line in enumerate(raw_text_lines):
+            output_text_split = tmp.split(line, 1)
+            
+            # 最后一个一定为false
+            if(index == len(raw_text_lines)-1):
+                is_hard_line_break.append(False)
+                break
+            
+            
+            if len(output_text_split) != 2:
+                print("-----------------")
+                print(f"last_text: {last_text}")
+                print(f"line_index: {index}")
+                print(f"currect target str: {tmp[:len(line) + 1]}")
+                print(f"currect raw str: {line}")
+                raise Exception(line)
+            
+            tmp = output_text_split[1]
+            
+            if output_text_split[1][0] == ' ':
+                is_hard_line_break.append(False)
+            elif output_text_split[1][0] == '\n':
+                is_hard_line_break.append(True)
+            else:
+                print(f"current output frest chat is {output_text_split[1][0]}")
+                raise Exception(line)
+            
+            last_text = line
+        
+        return is_hard_line_break
 
 
 if __name__ == "__main__":
