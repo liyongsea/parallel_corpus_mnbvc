@@ -1,3 +1,6 @@
+import datasets
+
+
 class TextSegmenter:
     """
     This class processes and segments raw text based on line breaks. 
@@ -74,7 +77,7 @@ class HardLineBreakDetector:
         """
         self.name = name
 
-    def detect(self, lines):
+    def detect(self, lines: list[str], record_id: str) -> list[bool]:
         """
         Apply the specific detection technique to the given lines
         Returns a list of boolean values (True for hard line break, False for soft line break)
@@ -84,13 +87,13 @@ class HardLineBreakDetector:
 
 
 class DetectorA(HardLineBreakDetector):
-    def detect(self, lines):
+    def detect(self, lines: list[str], record_id: str) -> list[bool]:
         print(lines)
         return [line.startswith('–') for line in lines[1:]]
 
 
 class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
-    def detect(self, lines):
+    def detect(self, lines: list[str], record_id: str) -> list[bool]:
         breaks = []
         for i in range(len(lines) - 1):
             if lines[i].endswith(('.', ';')) or lines[i + 1][0].isupper() or lines[i + 1].startswith('–'):
@@ -98,6 +101,26 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
             else:
                 breaks.append(False)  # Soft break
         return breaks
+
+class OfflineGptDetector(HardLineBreakDetector):
+    def __init__(self, name):
+        """
+        GPT dataset is not so large, so we load it to memory.
+        """
+        super().__init__(name)
+        self.records = {}
+
+        ds = datasets.load_dataset("bot-yaya/EN_PARAGRAPH_GPT_JOINED", split="train")
+        for i in ds:
+            rec = i['record']
+            self.records[rec] = i['is_hard_linebreak']
+    
+    def detect(self, lines: list[str], record_id: str) -> list[bool]:
+        result = self.records.get(record_id, None)
+        if result is not None:
+            return result
+        else:
+            return [True] * len(lines) - 1 # or raise error
 
 
 if __name__ == "__main__":
