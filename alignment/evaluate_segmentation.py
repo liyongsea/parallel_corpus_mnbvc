@@ -1,4 +1,3 @@
-import json
 import argparse
 
 import datasets
@@ -14,8 +13,8 @@ def main(detector_name):
         detector = DetectorA(detector_name)
     elif detector_name == 'PunctuationAndCapitalLetterDetector':
         detector = PunctuationAndCapitalLetterDetector(detector_name)
-    elif detector_name == 'OfflineGptDetector':
-        detector = OfflineGptDetector(detector_name)
+    elif detector_name == 'OfflineDetector':
+        detector = OfflineDetector(detector_name)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -42,7 +41,7 @@ def main(detector_name):
         segmenter.split_by_linebreak()
 
         # Get predictions for current record
-        predicted = detector.detect(segmenter.lines, record_id) # record_id for gpt cache 
+        predicted = detector.detect(segmenter.lines, record_id=record_id) # record_id for gpt cache 
 
         while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
             ground_truth.pop()

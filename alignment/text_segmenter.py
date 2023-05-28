@@ -77,7 +77,7 @@ class HardLineBreakDetector:
         """
         self.name = name
 
-    def detect(self, lines: list[str], record_id: str) -> list[bool]:
+    def detect(self, lines: list[str],**kwargs) -> list[bool]:
         """
         Apply the specific detection technique to the given lines
         Returns a list of boolean values (True for hard line break, False for soft line break)
@@ -87,13 +87,13 @@ class HardLineBreakDetector:
 
 
 class DetectorA(HardLineBreakDetector):
-    def detect(self, lines: list[str], record_id: str) -> list[bool]:
+    def detect(self, lines: list[str],**kwargs) -> list[bool]:
         print(lines)
         return [line.startswith('–') for line in lines[1:]]
 
 
 class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
-    def detect(self, lines: list[str], record_id: str) -> list[bool]:
+    def detect(self, lines: list[str],**kwargs) -> list[bool]:
         breaks = []
         for i in range(len(lines) - 1):
             if lines[i].endswith(('.', ';')) or lines[i + 1][0].isupper() or lines[i + 1].startswith('–'):
@@ -102,7 +102,7 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
                 breaks.append(False)  # Soft break
         return breaks
 
-class OfflineGptDetector(HardLineBreakDetector):
+class OfflineDetector(HardLineBreakDetector):
     def __init__(self, name):
         """
         GPT dataset is not so large, so we load it to memory.
@@ -115,8 +115,8 @@ class OfflineGptDetector(HardLineBreakDetector):
             rec = i['record']
             self.records[rec] = i['is_hard_linebreak']
     
-    def detect(self, lines: list[str], record_id: str) -> list[bool]:
-        result = self.records.get(record_id, None)
+    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+        result = self.records.get(kwargs['record_id'], None)
         if result is not None:
             return result
         else:
