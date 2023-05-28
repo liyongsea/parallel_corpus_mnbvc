@@ -1,7 +1,9 @@
-import json
 import argparse
+
+import datasets
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
+
 from text_segmenter import *
 
 
@@ -11,12 +13,14 @@ def main(detector_name):
         detector = DetectorA(detector_name)
     elif detector_name == 'PunctuationAndCapitalLetterDetector':
         detector = PunctuationAndCapitalLetterDetector(detector_name)
+    elif detector_name == 'OfflineDetector':
+        detector = OfflineDetector(detector_name)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
-    # Load the validation data from a JSONL file
-    with open('validation_small.jsonl', 'r') as f:
-        validation_data = [json.loads(line) for line in f]
+    # Load the validation data from hf
+    validation_data = datasets.load_dataset("bot-yaya/EN_PARAGRAPH_HUMAN_JOINED", split="train")
+
 
     # Initialize DataFrame to store TP, FN, FP, TN
     results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN'])
@@ -29,13 +33,20 @@ def main(detector_name):
 
         raw_text = record['raw_text']
         ground_truth = record['is_hard_linebreak']
+        record_id = record['record'] # fill with empty string '' if there is not exists such a record id
+
 
         # Initialize and process the text with a TextSegmenter
         segmenter = TextSegmenter(raw_text)
         segmenter.split_by_linebreak()
 
         # Get predictions for current record
-        predicted = detector.detect(segmenter.lines)
+        predicted = detector.detect(segmenter.lines, record_id=record_id) # record_id for gpt cache 
+
+        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
+            ground_truth.pop()
+        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
+            predicted.pop()
 
         # Compute confusion matrix for the current record
         tn, fp, fn, tp = confusion_matrix(ground_truth, predicted).ravel()
