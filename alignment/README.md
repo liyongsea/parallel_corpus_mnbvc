@@ -4,9 +4,9 @@ This module evaluates the performance of a softline detection method by comparin
 
 ## Usage
 Here is an example command to evaluate the performance of the "PunctuationAndCapitalLetterDetector":
+```
 python evaluate_segmentation.py PunctuationAndCapitalLetterDetector
-
-where `<module_name>` is the name of the Python module containing the code, and `<detector_name>` is the name of the detector to evaluate. The available detector names are "DetectorA" and "PunctuationAndCapitalLetterDetector".
+```
 
 ## Performance Results
 The current performance results in terms of accuracy for the available detectors are as follows:
