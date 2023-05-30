@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
 
 from text_segmenter import *
+from rule_based_detector import RuleBasedDetector
 
 
 def main(detector_name):
@@ -15,6 +16,8 @@ def main(detector_name):
         detector = PunctuationAndCapitalLetterDetector(detector_name)
     elif detector_name == 'OfflineDetector':
         detector = OfflineDetector(detector_name)
+    elif detector_name == 'RuleBasedDetector':
+        detector = RuleBasedDetector(detector_name)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -43,9 +46,9 @@ def main(detector_name):
         # Get predictions for current record
         predicted = detector.detect(segmenter.lines, record_id=record_id) # record_id for gpt cache 
 
-        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
+        while len(ground_truth) >= len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
             ground_truth.pop()
-        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
+        while len(predicted) >= len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
             predicted.pop()
 
         # Compute confusion matrix for the current record
