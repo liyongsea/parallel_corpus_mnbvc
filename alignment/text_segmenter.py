@@ -85,6 +85,13 @@ class HardLineBreakDetector:
         """
         pass
 
+
+class DetectorA(HardLineBreakDetector):
+    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+        print(lines)
+        return [line.startswith('–') for line in lines[1:]]
+
+
 class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
     def detect(self, lines: list[str],**kwargs) -> list[bool]:
         breaks = []
@@ -94,6 +101,7 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
             else:
                 breaks.append(False)  # Soft break
         return breaks
+
 
 class OfflineDetector(HardLineBreakDetector):
     def __init__(self, name, dataset_name="bot-yaya/EN_PARAGRAPH_GPT_JOINED"):
