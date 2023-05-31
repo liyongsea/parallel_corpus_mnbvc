@@ -42,15 +42,9 @@ def read_int(s: str) -> int:
             return x
     return x
 
-def read_back_int(s: str) -> int:
+def read_int_after_last_dot(s: str) -> int:
     """读最后一个.后的数字"""
-    x = 0
-    for c in s:
-        if c.isdigit():
-            x = x * 10 + int(c)
-        elif c == '.':
-            x = 0
-    return x
+    return int(s.strip().split('.')[-1])
 
 def read_roman(s: str) -> int:
     """读罗马数字"""
@@ -77,10 +71,10 @@ def read_en_letter(s: str, begin_char='a') -> int:
 
 
 class RuleBasedDetector(HardLineBreakDetector):
-    LINENO_SEG_TOKENS = [
+    LINE_NUMBERING_PATTERNS = [
         (re.compile(r'^\d{1,3}\. '), read_int), # 有序列表，阿拉伯数字，很少有上千的，不写+而是{1,3}，避免错误匹配一些年份 1.
         (re.compile(r'^• '), lambda x: None), # 无序列表 •
-        (re.compile(r'^\d{1,2}\.\d{1,2} '), read_back_int), # 第二类有序列表，阿拉伯数字带小标号 1.1
+        (re.compile(r'^\d{1,2}\.\d{1,2} '), read_int_after_last_dot), # 第二类有序列表，阿拉伯数字带小标号 1.1
         (re.compile(r'^[IVX]{1,5}\. '), read_roman), # 有序列表，罗马数字 I.
         (re.compile(r'^\([a-z]\) '), read_en_letter), # 有序列表，括号小写英文 (a)
         (re.compile(r'^[a-z]\) '), read_en_letter), # 有序列表，半括号小写英文 a)
@@ -95,10 +89,11 @@ class RuleBasedDetector(HardLineBreakDetector):
 
     @staticmethod
     def match_lineno_seg(line: str):
-        """尝试跟列表规则组进行匹配，匹配不成功返回None，成功则返回一个MatchedLinenoInfo，line必须在传入前做strip
+        """
+        尝试跟列表规则组进行匹配，匹配不成功返回None，成功则返回一个MatchedLinenoInfo，line必须在传入前做strip
         int_index为None时，表示无序列表
         """
-        for rule_id, (rule_pattern, process_func) in enumerate(RuleBasedDetector.LINENO_SEG_TOKENS):
+        for rule_id, (rule_pattern, process_func) in enumerate(RuleBasedDetector.LINE_NUMBERING_PATTERNS):
             m = re.match(rule_pattern, line)
             if m:
                 return RuleBasedDetector.MatchedLinenoInfo(rule_id, process_func(m.group(0)))
@@ -149,9 +144,28 @@ class RuleBasedDetector(HardLineBreakDetector):
         return 0
     
     def detect(self, lines: list[str], **kwargs) -> list[bool]:
-        breaks = [True] * (len(lines) - 1)
+        """
+        Detects the positions of hard line breaks in a list of lines based on rule-based heuristics.
+
+        Args:
+            lines (list[str]): A list of strings representing the lines of text.
+            **kwargs: Additional keyword arguments (not used in this method).
+
+        Returns:
+            list[bool]: A list of boolean values indicating the positions of hard line breaks.
+                        True indicates a hard line break should be present at the corresponding index,
+                        while False indicates that the line break should be removed (lines should be merged).
+
+        Note:
+            The detection process is performed using rule-based heuristics that evaluate various factors,
+            including line numbering patterns, punctuation, capitalization, line lengths, and linguistic analysis with the help of NLTK.
+            The method assigns scores to each line break, and based on the scores, determines whether to keep or remove
+            the line break. The line breaks are represented as boolean values in the returned list, where True indicates
+            a hard line break and False indicates the line break should be removed.
+        """
+        is_hard_breaklines = [True] * (len(lines) - 1)
         match_infos = [] # 存(int数字列表号, int文件行号) 这样的二元组
-        line_marker = [] # 可以去掉换行的行下标
+        soft_linebreak_indice = [] # 可以去掉换行的行下标
         ## 行标号规则
         for lineid, line in enumerate(lines):
             m = self.match_lineno_seg(line)
@@ -163,7 +177,7 @@ class RuleBasedDetector(HardLineBreakDetector):
             prev_rule_id, prevcounter, prev_lineid = match_infos[idx]
             if prev_rule_id == rule_id:
                 if linecounter is None or linecounter == prevcounter + 1:
-                    line_marker.extend(range(prev_lineid, lineid - 1))
+                    soft_linebreak_indice.extend(range(prev_lineid, lineid - 1))
         
         for lineid, nextline in enumerate(lines[1:]):
             # prevline = outputs[-1]
@@ -175,8 +189,8 @@ class RuleBasedDetector(HardLineBreakDetector):
                 score += self.score_by_nltk(prevline, nextline)
 
             if score > 0:
-                line_marker.append(lineid)
+                soft_linebreak_indice.append(lineid)
 
-        for i in line_marker:
-            breaks[i] = False
-        return breaks
+        for i in soft_linebreak_indice:
+            is_hard_breaklines[i] = False
+        return is_hard_breaklines
