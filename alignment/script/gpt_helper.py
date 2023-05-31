@@ -37,7 +37,7 @@ def get_and_cache_dataset():
     except:
         dataset = datasets.load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED', split='train')
         dataset.save_to_disk(my_path())
-    dataset = dataset.select(range(300))
+    dataset = dataset.select(range(500))
     return dataset
 
 ## web
@@ -167,7 +167,7 @@ def lcs_sequence_alignment(ibatch: list[str] | str, obatch: list[str] | str) -> 
 
     n1 = ''.join(map(lambda x: x[0], ibuf))
     n2 = ''.join(map(lambda x: x[0], obuf))
-    # print(f'n1:{len(n1)}, n2:{len(n2)}')
+    print(f'n1:{len(n1)}, n2:{len(n2)}')
     idxs = pylcs.lcs_sequence_idx(n1, n2)
     mapping = {}
     for iidx, oidx in enumerate(idxs):
@@ -428,7 +428,7 @@ def push_idx_to_hf():
                         print(i, 'not contain any br')
         upload_pending = []
         for i in ds.filter(lambda x: x['record'] in idx_map):
-            br_rev = [True for _ in i['en'].splitlines()]
+            br_rev = [True] * i['en'].count('\n')
             for j in idx_map[i['record']]:
                 br_rev[j] = False
             upload_pending.append({'record': i['record'], 'raw_text': i['en'], 'is_hard_linebreak': br_rev})
@@ -450,18 +450,18 @@ def push_idx_to_hf():
             src = i['en']
             align_map, _, _ = lcs_sequence_alignment(src, outputmap[rec])
             br = get_br_indexes_from_alignmap(align_map)
-            br_rev = [True for _ in src.splitlines()]
+            br_rev = [True] * src.count('\n')
             for j in br:
                 br_rev[j] = False
             # assert br_rev == jmap[rec] # 顺便测一下对齐脚本正确性
             upload_pending.append({'record': i['record'], 'raw_text': i['en'], 'is_hard_linebreak': br_rev})
         return upload_pending
     
-    upload_pending = convert_idx()
+    upload_pending = convert_manual()
     hf_tk = read_secret('HF_TOKEN')
     print('dataset length:', len(upload_pending))
     upload_pending = datasets.Dataset.from_list(upload_pending)
-    upload_pending.push_to_hub(repo_id='gpt_joined_en_paragraph', split='train', token=hf_tk)
+    upload_pending.push_to_hub(repo_id='hunman_joined_en_paragraph', split='train', token=hf_tk)
 
 def download_and_visualize():
     """
