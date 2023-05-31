@@ -87,13 +87,13 @@ class HardLineBreakDetector:
 
 
 class DetectorA(HardLineBreakDetector):
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+    def detect(self, lines: list[str], **kwargs) -> list[bool]:
         print(lines)
         return [line.startswith('–') for line in lines[1:]]
 
 
 class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+    def detect(self, lines: list[str], **kwargs) -> list[bool]:
         breaks = []
         for i in range(len(lines) - 1):
             if lines[i].endswith(('.', ';')) or lines[i + 1][0].isupper() or lines[i + 1].startswith('–'):
@@ -102,25 +102,33 @@ class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
                 breaks.append(False)  # Soft break
         return breaks
 
+
 class OfflineDetector(HardLineBreakDetector):
-    def __init__(self, name):
+    def __init__(self, name, dataset_name="bot-yaya/EN_PARAGRAPH_GPT_JOINED"):
         """
-        GPT dataset is not so large, so we load it to memory.
+        Use an in-memory dataset to detect hard line breaks (mainly for performance testing purposes)
+        Args:
+            name: name of the detector
+            dataset_name: name of the dataset to use. The dataset should contains features:
+                - record: the record id
+                - is_hard_linebreak: a list of boolean values (True for hard line break, False for soft line break)
+                Dataset available:
+                - bot-yaya/EN_PARAGRAPH_GPT_JOINED: detection using GPT3.5           
         """
         super().__init__(name)
         self.records = {}
 
-        ds = datasets.load_dataset("bot-yaya/EN_PARAGRAPH_GPT_JOINED", split="train")
+        ds = datasets.load_dataset(dataset_name, split="train")
         for i in ds:
             rec = i['record']
             self.records[rec] = i['is_hard_linebreak']
     
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
-        result = self.records.get(kwargs['record_id'], None)
+    def detect(self, lines: list[str], record_id: str, **kwargs) -> list[bool]:
+        result = self.records.get(record_id, None)
         if result is not None:
             return result
         else:
-            return [True] * len(lines) - 1 # or raise error
+            raise ValueError("Record %s not found in dataset" % record_id)
 
 
 if __name__ == "__main__":
