@@ -13,8 +13,8 @@ def main(detector_name):
         detector = DetectorA(detector_name)
     elif detector_name == 'PunctuationAndCapitalLetterDetector':
         detector = PunctuationAndCapitalLetterDetector(detector_name)
-    elif detector_name == 'OfflineDetector':
-        detector = OfflineDetector(detector_name)
+    elif detector_name == 'GptOfflineDetector':
+        detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -43,10 +43,9 @@ def main(detector_name):
         # Get predictions for current record
         predicted = detector.detect(segmenter.lines, record_id=record_id) # record_id for gpt cache 
 
-        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
-            ground_truth.pop()
-        while len(ground_truth) > len(segmenter.lines): # temporary fix length issue, will be removed when dataset is finally ready
-            predicted.pop()
+        # temporary fix for the bug in the validation dataset
+        if len(ground_truth) == len(predicted) + 1:
+            ground_truth = ground_truth[:-1]
 
         # Compute confusion matrix for the current record
         tn, fp, fn, tp = confusion_matrix(ground_truth, predicted).ravel()
