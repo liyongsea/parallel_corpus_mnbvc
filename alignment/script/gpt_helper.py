@@ -254,6 +254,11 @@ def ask_gpt_for_one_file(row: DatasetDict):
         else:
             for retrytime in range(RETRY_TIME):
                 try:
+                    if len(encoder_gpt35.encode(batch)) < 20: # 结尾不能成段的噪声可能会让gpt疯狂道歉，这种情况下我们放过
+                        last_input_lineid = len(input_lines)
+                        todo_lineid = len(input_lines)
+                        break
+
                     outputs = chat(batch)
                     outputlines = clearup_output(outputs)
 
@@ -299,13 +304,15 @@ def ask_gpt_for_one_file(row: DatasetDict):
                         f.write('\n')
                 except UnknownException as e:
                     with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
+                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown_response', 'msg': e.args}, f)
                         f.write('\n')
                 except KeyboardInterrupt:
                     print('interrupted by keyboard.')
                     exit(0)
                 except Exception as e:
                     traceback.print_exc()
+                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
                     print('retry:', retrytime, e)
                     if retrytime == RETRY_TIME - 1:
                         raise
@@ -461,7 +468,7 @@ def push_idx_to_hf():
     hf_tk = read_secret('HF_TOKEN')
     print('dataset length:', len(upload_pending))
     upload_pending = datasets.Dataset.from_list(upload_pending)
-    upload_pending.push_to_hub(repo_id='hunman_joined_en_paragraph', split='train', token=hf_tk)
+    upload_pending.push_to_hub(repo_id='human_joined_en_paragraph', split='train', token=hf_tk)
 
 def download_and_visualize():
     """
