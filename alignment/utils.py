@@ -118,6 +118,66 @@ def compare_breaks(raw_text, output_text):
 
 
 
+def find_matching_elements(raw_text, output_text, fuzzy_range=5):
+    
+    def find_break_line_positions(string):
+        return [i for i, char in enumerate(string) if char == '\n']
+    
+    arr1 = find_break_line_positions(raw_text)
+    arr2 = find_break_line_positions(output_text)
+    
+    result = []
+    
+    # Two pointers
+    i1, i2 = 0, 0
+
+    while i1 < len(arr1) and i2 < len(arr2):
+        if arr2[i2] >= arr1[i1] and arr2[i2] <= arr1[i1] + fuzzy_range:
+            result.append(arr1[i1])
+            
+            i1 += 1
+            i2 += 1
+        elif arr2[i2] < arr1[i1]:
+            i2 += 1
+        else:
+            i1 += 1
+
+    return result
+
+def fuzzy_compare_breaks(raw_text, output_text, fuzzy_range=5):
+    """
+    Do a fuzzy comparison of hard line breaks in the raw text with the output text.
+
+    Args:
+        raw_text (str): The raw text to be detected with soft line breaks and hard line breaks.
+        output_text (str): The output text with hard line breaks. Soft line breaks are replaced with spaces.
+        fuzzy_range(int): degree of ambiguity
+    
+    Returns:
+        is_hard_line_break (list[bool]): A list of booleans where `True` signifies a hard line break.
+    """
+    break_line_positions = find_matching_elements(raw_text, output_text, fuzzy_range)
+    
+    is_hard_break_lines = []
+    
+    break_line_positions_cursor = 0
+    
+    len_total = -1
+    for line in raw_text.splitlines():
+        len_total += len(line) + 1
+        
+        for break_line_position in break_line_positions[break_line_positions_cursor:]:
+            if break_line_position > len_total:
+                is_hard_break_lines.append(True)
+                break
+            elif break_line_position == len_total:
+                break_line_positions_cursor += 1
+                is_hard_break_lines.append(False)
+                break
+            
+    return is_hard_break_lines
+
+
 if __name__ == "__main__":
     raw_text = """– To strengthen or develop norms at the global, regional and national levels that
 would reinforce and further coordinate efforts to prevent and combat the illicit

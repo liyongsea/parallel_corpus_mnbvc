@@ -5,16 +5,19 @@ import json
 
 from text_segmenter import HardLineBreakDetector
 import utils
+import tiktoken
 
 
 class GPTBatchDetector(HardLineBreakDetector):
-    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False):
+    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False, gpt_model="gpt-3.5-turbo"):
         super().__init__(name)
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache = {}
         self.token_limit = token_limit
         self.use_proxy = use_proxy
+        self.token_encoder = tiktoken.encoding_for_model(gpt_model)
+
 
     def create_batches(self, lines: list[str]) -> list[list[str]]:
         """
@@ -33,9 +36,8 @@ class GPTBatchDetector(HardLineBreakDetector):
         token_count = 0
 
         for i, line in enumerate(lines):
-            words = line.split()
             # Estimate the token count for the current line
-            line_token_count = len(words) * (100 / 75)
+            line_token_count = len(self.token_encoder.encode(line))
 
             # Check if adding this line would exceed the token limit
             if token_count + line_token_count > self.token_limit:
@@ -145,7 +147,7 @@ if __name__ == '__main__':
     detector = GPTBatchDetector('gpt-remote', "./cache_dir")
     # read val_files 432549.txt
     record_id = '453500'
-    with open(f'{record_id}.txt', 'r') as f:
+    with open(f'{record_id}.txt', 'r', encoding="utf-8") as f:
         lines = f.readlines()
     lines = [line.strip() for line in lines]
 
