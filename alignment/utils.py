@@ -119,6 +119,18 @@ def compare_breaks(raw_text, output_text):
 
 
 def find_matching_elements(raw_text, output_text, fuzzy_range=5):
+    """
+    Find the index of break line and match them
+
+    Args:
+        raw_text (str): The raw text to be detected with soft line breaks and hard line breaks.
+        output_text (str): The output text with hard line breaks. Soft line breaks are replaced with spaces.
+        fuzzy_range(int): degree of ambiguity, How many characters do you think gpt changes in a line?
+    
+    Returns:
+        [1, 24, 46, 111, 295, ...]
+
+    """
     
     def find_break_line_positions(string):
         return [i for i, char in enumerate(string) if char == '\n']
@@ -151,10 +163,11 @@ def fuzzy_compare_breaks(raw_text, output_text, fuzzy_range=5):
     Args:
         raw_text (str): The raw text to be detected with soft line breaks and hard line breaks.
         output_text (str): The output text with hard line breaks. Soft line breaks are replaced with spaces.
-        fuzzy_range(int): degree of ambiguity
+        fuzzy_range(int): degree of ambiguity, How many characters do you think gpt changes in a line?
     
     Returns:
         is_hard_line_break (list[bool]): A list of booleans where `True` signifies a hard line break.
+        
     """
     break_line_positions = find_matching_elements(raw_text, output_text, fuzzy_range)
     
