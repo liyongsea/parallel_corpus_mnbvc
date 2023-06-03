@@ -38,12 +38,13 @@ def create_chat_prompt(input_text: str):
     ]
 
 
-def gpt_detect_handle_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 3):
+def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 3):
     """
     Sends the provided text to the AI model and returns its response.
 
     Args:
         line_break_text (str): The text with line breaks which needs to be processed by the AI model.
+        The token number of line_break_text should be < 1400
 
     Raises:
         ExceededContextLength: If the context length is exceeded.
@@ -125,6 +126,6 @@ trade in small arms and light weapons in all its aspects;
 trafficking in and manufacturing of small arms and light weapons and to
 reduce excessive and destabilizing accumulations and transfers of such
 weapons throughout the world;"""
-    output_text = gpt_detect_handle_line_breaks(raw_text)
+    output_text = gpt_detect_hard_line_breaks(raw_text)
     print(output_text)
     import pdb; pdb.set_trace()

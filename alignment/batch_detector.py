@@ -1,15 +1,20 @@
 from typing import Tuple
+import itertools
+from pathlib import Path
+import json
+
 from text_segmenter import HardLineBreakDetector
 import utils
 
 
 class GPTBatchDetector(HardLineBreakDetector):
-    def __init__(self, name, token_limit=1400):
-        """
-        Initialize the GPTBatchDetector with a specific name and token limit.
-        """
+    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False):
         super().__init__(name)
+        self.cache_dir = Path(cache_dir)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.cache = {}
         self.token_limit = token_limit
+        self.use_proxy = use_proxy
 
     def create_batches(self, lines: list[str]) -> list[list[str]]:
         """
@@ -49,9 +54,30 @@ class GPTBatchDetector(HardLineBreakDetector):
         # Add the last batch if it's not empty
         if batch:
             batches.append(batch)
+        return batches
 
-        self._batches = batches
-        return self._batches
+    def gpt_linebreak_detection_request(self, raw_text: str, record_id: str, batch_index: int) -> str:
+        """
+        Sends a request to the GPT-3.5 API to detect hard line breaks in the given text.
+        Use record_id and batch_index to cache the output.
+
+        Args:
+            raw_text (str): The raw text to be processed.
+            record_id (int): The unique id of the record.
+            batch_index (int): The index of the batch.
+
+        Returns:
+            str: The processed text.
+        """
+        filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
+        if not filename.exists():
+            output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
+            with filename.open('w') as f:
+                json.dump(output_text, f)
+        else:
+            with filename.open('r') as f:
+                output_text = json.load(f)
+        return output_text
 
     def process_batches(self, batches: list[list[str]], record_id: str) -> Tuple[list[str], list[bool]]:
         """
@@ -71,23 +97,14 @@ class GPTBatchDetector(HardLineBreakDetector):
         for i, batch in enumerate(batches):
             raw_text = "\n".join(batch)
 
-            # check if the processing is already done
-            output_text, is_hard_line_break = self.read_cache(record_id, i)
-            if output_text is None or is_hard_line_break is None:
-                # if not, call the gpt_linebreak_detect function
-                output_text = gpt_linebreak_detect(raw_text)
-
-                # Compare the hard line breaks in the raw text with the output text
-                is_hard_line_break = compare_breaks(raw_text, output_text)
-
-                # Save the processed batch and its detections to disk and cache
-                self.write_cache(output_text, is_hard_line_break, record_id, i)
+            output_text = self.gpt_linebreak_detection_request(raw_text, record_id, i)
+            # Compare the hard line breaks in the raw text with the output text
+            is_hard_line_break = utils.compare_breaks(raw_text, output_text)
 
             processed_batches.append(output_text)
             detections.extend(is_hard_line_break)
 
         return processed_batches, detections
-
 
     def post_process(self, processed_batches: list[str], detections: list[bool]) -> list[bool]:
         """
@@ -101,54 +118,37 @@ class GPTBatchDetector(HardLineBreakDetector):
         Returns:
             list[bool]: The post-processed boolean detections.
         """
-        pass
+        # concate detections as one list
+        post_processed_detections = list(itertools.chain.from_iterable(list_of_lists))
+        return post_processed_detections
 
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+    def detect(self, lines: list[str], record_id: str, **kwargs) -> list[bool]:
         """
         Applies the GPT-3.5 detection technique to the given lines.
         This method first batches the lines, processes the batches, and then post-processes the results.
 
         Args:
             lines (list[str]): The lines to be detected.
+            record_id (int): The unique id of the record. Use to cache the output of GPT
 
         Returns:
             list[bool]: The detection results.
         """
         batches = self.create_batches(lines)
-        processed_batches, detections = self.process_batches(batches)
+        processed_batches, detections = self.process_batches(batches, record_id)
         post_processed_detections = self.post_process(processed_batches, detections)
         return post_processed_detections
 
-    def write_cache(self, output_text: str, is_hard_line_break: list[bool], record_id: str, batch_index: int):
-        filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
-        with filename.open('w') as f:
-            json.dump({"output_text": output_text, "is_hard_line_break": is_hard_line_break}, f)
-        self.cache[record_id] = filename
-
-    def read_cache(self, record_id: str, batch_index: int) -> Tuple[str, list[bool]]:
-        filename = self.cache.get(record_id)
-        if filename and filename.exists():
-            with filename.open('r') as f:
-                data = json.load(f)
-            return data.get("output_text"), data.get("is_hard_line_break")
-        return None, None
-
 
 if __name__ == '__main__':
-    # Test the GPTRemoteDetector
+    # Test the GPTBatchDetector
     detector = GPTBatchDetector('gpt-remote', "./cache_dir")
     # read val_files 432549.txt
-    with open('val_files/432549.txt', 'r') as f:
+    record_id = '453500'
+    with open(f'{record_id}.txt', 'r') as f:
         lines = f.readlines()
-    # remove \n in lines
     lines = [line.strip() for line in lines]
-    print(lines[:10])
 
-    batches = detector.create_batches(lines)
-    print("Number of batches: ", len(batches))
-    print("start batch 0")
-    print(batches[0])
-    print()
-    print("start batch 1")
-    print(batches[1])
+    post_processed_detections = detector.detect(lines, record_id)
+    print(post_processed_detections)
 
