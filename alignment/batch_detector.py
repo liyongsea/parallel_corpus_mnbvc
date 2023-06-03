@@ -99,7 +99,7 @@ class GPTBatchDetector(HardLineBreakDetector):
 
             output_text = self.gpt_linebreak_detection_request(raw_text, record_id, i)
             # Compare the hard line breaks in the raw text with the output text
-            is_hard_line_break = utils.compare_breaks(raw_text, output_text)
+            is_hard_line_break = utils.compute_near_linebreak_match(raw_text, output_text, margin=10)
 
             processed_batches.append(output_text)
             detections.extend(is_hard_line_break)
@@ -119,7 +119,7 @@ class GPTBatchDetector(HardLineBreakDetector):
             list[bool]: The post-processed boolean detections.
         """
         # concate detections as one list
-        post_processed_detections = list(itertools.chain.from_iterable(list_of_lists))
+        post_processed_detections = list(itertools.chain.from_iterable(detections))
         return post_processed_detections
 
     def detect(self, lines: list[str], record_id: str, **kwargs) -> list[bool]:
@@ -136,8 +136,8 @@ class GPTBatchDetector(HardLineBreakDetector):
         """
         batches = self.create_batches(lines)
         processed_batches, detections = self.process_batches(batches, record_id)
-        post_processed_detections = self.post_process(processed_batches, detections)
-        return post_processed_detections
+        # post_processed_detections = self.post_process(processed_batches, detections)
+        return detections
 
 
 if __name__ == '__main__':
@@ -151,4 +151,4 @@ if __name__ == '__main__':
 
     post_processed_detections = detector.detect(lines, record_id)
     print(post_processed_detections)
-
+    print(len(post_processed_detections), len(lines))
