@@ -8,6 +8,7 @@ from collections import OrderedDict
 from typing import Tuple
 from pathlib import Path
 from itertools import chain
+import requests
 
 import pylcs
 import tiktoken
@@ -21,6 +22,7 @@ RETRY_TIME = 5
 SLEEP_TIME = 0
 
 encoder_gpt35 = tiktoken.encoding_for_model("gpt-3.5-turbo")
+exception_files = set()
 
 ## path
 def cat(*args): 
@@ -37,7 +39,7 @@ def get_and_cache_dataset():
     except:
         dataset = datasets.load_dataset('bot-yaya/UN_PDF_SUBSET_PREPROCESSED', split='train')
         dataset.save_to_disk(my_path())
-    dataset = dataset.select(range(500))
+    dataset = dataset.select(range(500)).filter(lambda x: x['record'] not in exception_files)
     return dataset
 
 ## web
@@ -58,6 +60,8 @@ def generate_prompt(input_content: str):
 
 Please note that you should only determine which breaklines to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
 
+If there is no breakline symbol should be replaced, just echo the input text as it is.
+
 Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary breaklines.
     '''},
         {"role": "assistant", "content": 'Please provide your text.'},
@@ -68,10 +72,9 @@ Additionally, please ensure that pagination and indexing information remains on 
 class ContextLengthExceeded(Exception): pass
 class UnknownException(Exception): pass
 
-def chat(prompt: str):
+def request_gpt_segment(prompt: str):
     """主体，入参prompt是向chatgpt问的内容，debug_prompt是让它打印内容，production只打下标"""
 
-    import requests
     k = read_secret('OPENAI_TOKEN')
     r = requests.post(
         # "https://api.openai.com/v1/chat/completions",
@@ -204,128 +207,140 @@ def get_br_indexes_from_alignmap(align_map: dict[int, set[int]]) -> list[int]:
 
 ## mapping functions
 def ask_gpt_for_one_file(row: DatasetDict):
-    inputs = row['en'].replace('\ufffe', '-')
-    en_rate = len(re.findall(r'[a-zA-Z]', inputs)) / len(inputs) if len(inputs) else 0
-    print(en_rate)
-    if en_rate < 0.3:
-        # 435951编码错误，要滤掉这种情况
-        print('filtered')
-        return
-    input_lines = inputs.splitlines() 
-    rec = row['record']
-    visited = {}
+    try:
+        inputs = row['en'].replace('\ufffe', '-')
+        en_rate = len(re.findall(r'[a-zA-Z]', inputs)) / len(inputs) if len(inputs) else 0
+        print(en_rate)
+        if en_rate < 0.3:
+            # 435951编码错误，要滤掉这种情况
+            print('filtered')
+            return
+        input_lines = inputs.splitlines() 
+        rec = row['record']
+        visited = {}
 
-    Path(my_path('done')).mkdir(exist_ok=True)
-    output_file_name = my_path(f'done/gpt_en_{rec}.jsonl')
+        Path(my_path('done')).mkdir(exist_ok=True)
+        output_file_name = my_path(f'done/gpt_en_{rec}.jsonl')
 
-    if os.path.exists(output_file_name):
-        with open(output_file_name, 'r', encoding='utf-8') as f:
-            saved_content = f.read()
-        for json_line in saved_content.splitlines():
-            json_line = json_line.strip()
-            if json_line:
-                infos = json.loads(json_line)
-                if infos['step'] == MAX_TOKEN_COUNT:
-                    visited[infos['batch']] = infos
+        if os.path.exists(output_file_name):
+            with open(output_file_name, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+            for json_line in saved_content.splitlines():
+                json_line = json_line.strip()
+                if json_line:
+                    infos = json.loads(json_line)
+                    if infos['step'] == MAX_TOKEN_COUNT:
+                        visited[infos['batch']] = infos
 
-    # last: list[str] = ['']
-    def gen_batch(begin_lineid: int):
-        """从begin_lineid开始拿一个batch"""
-        assert begin_lineid < len(input_lines)
-        buf = ''
-        for lineid in range(begin_lineid, len(input_lines)):
-            line = input_lines[lineid]
-            tmp = (buf + '\n' if len(buf)>0 else '') + line
-            tks = encoder_gpt35.encode(tmp) # 如果能保证每行加起来等于总的，那么可以改写成O(n)的
-            if len(tks) >= MAX_TOKEN_COUNT:
-                return buf, lineid # 本行还没加上，所以是开区间
-            buf = tmp
-        if buf:
-            return buf, lineid + 1
+        # last: list[str] = ['']
+        def gen_batch(begin_lineid: int):
+            """从begin_lineid开始拿一个batch"""
+            assert begin_lineid < len(input_lines)
+            buf = ''
+            for lineid in range(begin_lineid, len(input_lines)):
+                line = input_lines[lineid]
+                tmp = (buf + '\n' if len(buf)>0 else '') + line
+                tks = encoder_gpt35.encode(tmp) # 如果能保证每行加起来等于总的，那么可以改写成O(n)的
+                if len(tks) >= MAX_TOKEN_COUNT:
+                    return buf, lineid # 本行还没加上，所以是开区间
+                buf = tmp
+            if buf:
+                return buf, lineid + 1
 
-    todo_lineid = 0
-    batch_id = 0
+        todo_lineid = 0
+        batch_id = 0
 
-    while todo_lineid < len(input_lines):
-        batch, lineid = gen_batch(todo_lineid)
+        while todo_lineid < len(input_lines):
+            batch, lineid = gen_batch(todo_lineid)
 
-        if batch_id in visited:
-            todo_lineid = visited[batch_id]['r'] + 1
-        else:
-            for retrytime in range(RETRY_TIME):
-                try:
-                    if len(encoder_gpt35.encode(batch)) < 20: # 结尾不能成段的噪声可能会让gpt疯狂道歉，这种情况下我们放过
-                        last_input_lineid = len(input_lines)
-                        todo_lineid = len(input_lines)
+            if batch_id in visited:
+                todo_lineid = visited[batch_id]['r'] + 1
+            else:
+                for retrytime in range(RETRY_TIME):
+                    try:
+                        if len(encoder_gpt35.encode(batch)) < 20: # 结尾不能成段的噪声可能会让gpt疯狂道歉，这种情况下我们放过
+                            last_input_lineid = len(input_lines)
+                            todo_lineid = len(input_lines)
+                            break
+
+                        outputs = request_gpt_segment(batch)
+                        outputlines = clearup_output(outputs)
+
+                        align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
+                        input_line_offset = lineid - len(batch.splitlines()) # 第一行在本文件中的下标
+                        assert input_lines[input_line_offset] == batch.splitlines()[0]
+                        if lineid < len(input_lines):
+                            if len(align_map) > 1:
+                                align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
+
+                            last_input_lineid = max(chain(*align_map.values())) + input_line_offset
+                            todo_lineid = last_input_lineid + 1 
+                        else:
+                            # 已经做完了本文件
+                            last_input_lineid = len(input_lines)
+                            todo_lineid = len(input_lines)
+
+
+                        br = []
+                        for igroups in align_map.values():
+                            for igroup in igroups:
+                                if igroup + 1 in igroups:
+                                    br.append(igroup + input_line_offset)
+                        br.sort()
+                        
+                        with open(output_file_name, 'a', encoding='utf-8') as f:
+                            json.dump({
+                                'batch': batch_id, 
+                                'step': MAX_TOKEN_COUNT, 
+                                'l': min(chain(*align_map.values())) + input_line_offset, 
+                                'r': last_input_lineid, 
+                                'input': batch, 
+                                'output': outputs,
+                                'offset': input_line_offset,
+                                'br': br
+                                }, f)
+                            f.write('\n')
+
                         break
+                    except ContextLengthExceeded as e:
+                        with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                            json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'context_length_exceeded', 'msg': str(e.args)}, f)
+                            f.write('\n')
+                    except UnknownException as e:
+                        with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                            json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown_response', 'msg': str(e.args)}, f)
+                            f.write('\n')
+                    except requests.exceptions.ReadTimeout:
+                        with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                            json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'timeout', 'msg': str(e.args)}, f)
+                            f.write('\n')
+                    except KeyboardInterrupt:
+                        print('interrupted by keyboard.')
+                        exit(0)
+                    except Exception as e:
+                        traceback.print_exc()
+                        with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
+                            json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': str(e.args)}, f)
+                            f.write('\n')
+                        print('retry:', retrytime, e)
+                        if retrytime == RETRY_TIME - 1:
+                            raise
+                        print(f'sleep for {SLEEP_TIME}s')
+                        time.sleep(SLEEP_TIME)
 
-                    outputs = chat(batch)
-                    outputlines = clearup_output(outputs)
+                print(f'sleep for {SLEEP_TIME}s')
+                time.sleep(SLEEP_TIME)
 
-                    align_map, irate, orate = lcs_sequence_alignment(batch, outputlines)
-                    input_line_offset = lineid - len(batch.splitlines()) # 第一行在本文件中的下标
-                    assert input_lines[input_line_offset] == batch.splitlines()[0]
-                    if lineid < len(input_lines):
-                        if len(align_map) > 1:
-                            align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
-
-                        last_input_lineid = max(chain(*align_map.values())) + input_line_offset
-                        todo_lineid = last_input_lineid + 1 
-                    else:
-                        # 已经做完了本文件
-                        last_input_lineid = len(input_lines)
-                        todo_lineid = len(input_lines)
-
-
-                    br = []
-                    for igroups in align_map.values():
-                        for igroup in igroups:
-                            if igroup + 1 in igroups:
-                                br.append(igroup + input_line_offset)
-                    br.sort()
-                    
-                    with open(output_file_name, 'a', encoding='utf-8') as f:
-                        json.dump({
-                            'batch': batch_id, 
-                            'step': MAX_TOKEN_COUNT, 
-                            'l': min(chain(*align_map.values())) + input_line_offset, 
-                            'r': last_input_lineid, 
-                            'input': batch, 
-                            'output': outputs,
-                            'offset': input_line_offset,
-                            'br': br
-                            }, f)
-                        f.write('\n')
-
-                    break
-                except ContextLengthExceeded as e:
-                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'context_length_exceeded', 'msg': e.args}, f)
-                        f.write('\n')
-                except UnknownException as e:
-                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown_response', 'msg': e.args}, f)
-                        f.write('\n')
-                except KeyboardInterrupt:
-                    print('interrupted by keyboard.')
-                    exit(0)
-                except Exception as e:
-                    traceback.print_exc()
-                    with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f: # 日志
-                        json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'batch': batch_id, 'step': MAX_TOKEN_COUNT, 'input': batch, 'exc': 'unknown', 'msg': e.args}, f)
-                    print('retry:', retrytime, e)
-                    if retrytime == RETRY_TIME - 1:
-                        raise
-                    print(f'sleep for {SLEEP_TIME}s')
-                    time.sleep(SLEEP_TIME)
-
-            print(f'sleep for {SLEEP_TIME}s')
-            time.sleep(SLEEP_TIME)
-
-        batch_id += 1
+            batch_id += 1
+    except Exception as e:
+        with open(my_path('chatgptexception.jsonl'), 'a', encoding='utf-8') as f:
+            json.dump({'time': str(datetime.datetime.now()),'rec': rec, 'exc': 'runtime_error', 'msg': traceback.format_exc()}, f)
+            f.write('\n')
+        with open(my_path('exception_files.txt'), 'a', encoding='utf-8') as f:
+            f.write(rec + '\n')
 
 def post_process_for_one_file(row: DatasetDict):
-    """后处理，prompt用输出py样式列表的方法"""
+    """后处理，将分批的已请求的jsonl文件整合成一个文件对应的下标idx文件，即soft_linebreak的下标"""
     from loguru import logger
     logger.add(open('log.txt', 'a'))
     inputs = row['en'].replace('\ufffe', '-')
@@ -338,20 +353,19 @@ def post_process_for_one_file(row: DatasetDict):
     # if rec == '448094':
         # print('bp1')
     obatches = [] # output batches
-    br = set()
-
+    soft_linebreak_indexes = set()
 
     with open(output_file_name, 'r', encoding='utf-8') as f:
         flines = f.read().splitlines()
         for p, i in enumerate(flines):
             j = json.loads(i) # batch(int):批次号 step(int):步长，即MAX_TOKEN_COUNT input(str):输入文本 output(str):输出文本 l(int):左边界行号，上次处理的 r(int):右边界行号
-            br = br.union(j['br'])
+            soft_linebreak_indexes = soft_linebreak_indexes.union(j['br'])
             obatches.append(j['output'])
             obatches.append('==========')
 
     concated = []
     for lineid, iline in enumerate(ilines):
-        if lineid - 1 in br:
+        if lineid - 1 in soft_linebreak_indexes:
             concated[-1] += ' ' + iline
         else:
             concated.append(iline)
@@ -363,7 +377,7 @@ def post_process_for_one_file(row: DatasetDict):
     with open(my_path('post', f'{rec}.txt'), 'w', encoding='utf-8') as f:
         f.write('\n'.join(concated))
     with open(my_path('post', f'{rec}.idx'), 'w', encoding='utf-8') as f:
-        f.write(','.join(map(str, list(sorted(br)))))
+        f.write(','.join(map(str, list(sorted(soft_linebreak_indexes)))))
 
 ## methods
 def ask_gpt():
@@ -464,11 +478,11 @@ def push_idx_to_hf():
             upload_pending.append({'record': i['record'], 'raw_text': i['en'], 'is_hard_linebreak': br_rev})
         return upload_pending
     
-    upload_pending = convert_manual()
+    upload_pending = convert_idx()
     hf_tk = read_secret('HF_TOKEN')
     print('dataset length:', len(upload_pending))
     upload_pending = datasets.Dataset.from_list(upload_pending)
-    upload_pending.push_to_hub(repo_id='human_joined_en_paragraph', split='train', token=hf_tk)
+    upload_pending.push_to_hub(repo_id='gpt_joined_en_paragraph', split='train', token=hf_tk)
 
 def download_and_visualize():
     """
@@ -495,6 +509,19 @@ def download_and_visualize():
     
 
 if __name__ == "__main__":
+
+    if os.path.exists(my_path('chatgptexception.jsonl')):
+        with open(my_path('chatgptexception.jsonl'), 'r', encoding='utf-8') as f:
+            for line in f.read().splitlines():
+                json_log = json.loads(line)
+                if json_log.get('exc') == 'runtime_error':
+                    exception_files.add(json_log['rec'])
+
+    if exception_files:
+        print('some files cannot be process properly in previous run:')
+        print(*exception_files)
+        print('these files will be ignored.')
+
     command_map = OrderedDict((
         ('1', ask_gpt),
         ('2', post_process),
