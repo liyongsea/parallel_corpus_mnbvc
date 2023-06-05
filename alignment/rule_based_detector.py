@@ -33,13 +33,17 @@ def read_chinese(s: str) -> int:
     return num
 
 def read_int(s: str) -> int:
-    """从s的开头开始读一段连续的数字"""
+    """
+    鲁棒地读入一个在字符串中的数字，避免报错。
+    用于将以下三种样式的有序列表标号中解析出整数标号:
+        1. 
+        (1) 
+        1)
+    """
     x = 0
     for c in s:
         if c.isdigit():
             x = x * 10 + int(c)
-        else:
-            return x
     return x
 
 def read_int_after_last_dot(s: str) -> int:
@@ -146,6 +150,12 @@ class RuleBasedDetector(HardLineBreakDetector):
     def detect(self, lines: list[str], **kwargs) -> list[bool]:
         """
         Detects the positions of hard line breaks in a list of lines based on rule-based heuristics.
+        Firstly, we try to recognize line numbering patterns and mark the breakline between adjacent consequent line number or adjacent
+        unordered line numberling patterns as soft line breaks.
+        Secondly, we score the line breaks according to the length of previous line, the last punctuation of previous line, whether
+        the first character of nextline is capitalized, and nltk tokenize result. These rules are written in `score_simple` and 
+        `score_by_nltk` method, we assign a positive score in case the line break seems to be a soft line break, and negative otherwise.
+
 
         Args:
             lines (list[str]): A list of strings representing the lines of text.
