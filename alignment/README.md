@@ -16,14 +16,15 @@ The current performance results in terms of accuracy for the available detectors
 
 | Detector Name                        | Accuracy |
 |--------------------------------------|----------|
-| PunctuationAndCapitalLetterDetector  | 0.78     |
-| GptOfflineDetector                   | 0.93     |
+| PunctuationAndCapitalLetterDetector  | 0.81     |
+| RuleBasedDetector                    | 0.87     |
+| GptOfflineDetector                   | 0.94     |
 
 These accuracy values represent the overall correct predictions made by each detector. Higher accuracy values indicate better performance in distinguishing between softline and non-softline instances.
 
-## Validation Dataset - EN_PARAGRAPH_HUMAN_JOINED
+## Validation Dataset - human_joined_en_paragraph
 The validation dataset used in this evaluation consists of the following characteristics:
-- 17 files randomly selected from the unparallel corpus dataset.
+- 19 files randomly selected from the unparallel corpus dataset.
 - Contains English text only.
 - Human-annotated line breaks are provided as the ground truth for evaluation.
 The dataset contains two features:

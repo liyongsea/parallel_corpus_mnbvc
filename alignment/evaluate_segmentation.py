@@ -5,6 +5,7 @@ import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
 
 from text_segmenter import *
+from rule_based_detector import RuleBasedDetector
 
 
 def main(detector_name):
@@ -13,13 +14,15 @@ def main(detector_name):
         detector = DetectorA(detector_name)
     elif detector_name == 'PunctuationAndCapitalLetterDetector':
         detector = PunctuationAndCapitalLetterDetector(detector_name)
+    elif detector_name == 'RuleBasedDetector':
+        detector = RuleBasedDetector(detector_name)
     elif detector_name == 'GptOfflineDetector':
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/EN_PARAGRAPH_HUMAN_JOINED", split="train")
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train")
 
 
     # Initialize DataFrame to store TP, FN, FP, TN
@@ -43,9 +46,10 @@ def main(detector_name):
         # Get predictions for current record
         predicted = detector.detect(segmenter.lines, record_id=record_id) # record_id for gpt cache 
 
-        # temporary fix for the bug in the validation dataset
-        if len(ground_truth) == len(predicted) + 1:
-            ground_truth = ground_truth[:-1]
+        while len(ground_truth) >= len(segmenter.lines): # temporary fix for the bug in the validation dataset
+            ground_truth.pop()
+        while len(predicted) >= len(segmenter.lines):
+            predicted.pop()
 
         # Compute confusion matrix for the current record
         tn, fp, fn, tp = confusion_matrix(ground_truth, predicted).ravel()
