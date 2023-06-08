@@ -35,7 +35,6 @@ def main(detector_name):
     # Initialize the lists to collect all predictions and ground truth labels
     all_predictions, all_ground_truth = [], []
 
-    validation_data = validation_data.select(range(5))
     # Iterate over the validation data
     for record in tqdm(validation_data):
 

@@ -16,6 +16,10 @@ class UnknownError(Exception):
     pass
 
 
+class RequestException(Exception):
+    pass
+
+
 def create_chat_prompt(input_text: str): 
     """
     Creates a prompt for the AI model based on the provided input text.
