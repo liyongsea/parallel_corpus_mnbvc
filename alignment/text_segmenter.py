@@ -87,13 +87,13 @@ class HardLineBreakDetector:
 
 
 class DetectorA(HardLineBreakDetector):
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+    def detect(self, lines: list[str], **kwargs) -> list[bool]:
         print(lines)
         return [line.startswith('–') for line in lines[1:]]
 
 
 class PunctuationAndCapitalLetterDetector(HardLineBreakDetector):
-    def detect(self, lines: list[str],**kwargs) -> list[bool]:
+    def detect(self, lines: list[str], **kwargs) -> list[bool]:
         breaks = []
         for i in range(len(lines) - 1):
             if lines[i].endswith(('.', ';')) or lines[i + 1][0].isupper() or lines[i + 1].startswith('–'):
