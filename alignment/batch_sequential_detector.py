@@ -23,6 +23,11 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         self.encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
 
     @staticmethod
+    def clearup_output(raw_output_from_chatgpt: str) -> list[str]:
+        """处理返回的数据中包含\n\n的情况"""
+        return list(filter(lambda x: len(x.strip()), raw_output_from_chatgpt.splitlines()))
+
+    @staticmethod
     def tokenize_by_space_splited_word(input_lines: list[str], output_lines: list[str], offset=0) -> Tuple[list[LCSTokenInfo], list[LCSTokenInfo]]:
         """
         Encode `input_lines` and `output_lines` by space splited word as utf-8 single character, to speedup LCS procedure.
@@ -78,7 +83,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             output_lines = output_lines.splitlines()
         
         # 考虑到运行效率，我们切分粒度采用空格隔开的单词而不是字母
-        input_tokens_info, output_tokens_info = GPTBatchSequentialDetector.tokenize_for_lcs(input_lines, output_lines)
+        input_tokens_info, output_tokens_info = GPTBatchSequentialDetector.tokenize_by_space_splited_word(input_lines, output_lines)
 
         # 算输入输出的每行的单词命中率，即：匹配的单词总字符数 / 单词总字符数
         input_hit_rate = [0 for _ in input_lines] 
@@ -101,6 +106,9 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             input_hit_rate[p] /= sum(map(len, input_lines[p].split()))
         for p, i in enumerate(output_hit_rate):
             output_hit_rate[p] /= sum(map(len, output_lines[p].split()))
+
+        if len(mapping) > 1:
+            mapping.pop(max(mapping.keys())) # 干掉最后一个分组，避免不完全成段
 
         # 为了防止加段现象影响准确率，匹配率低于60%的output_line_id直接扔掉
         for p, i in enumerate(output_hit_rate):
@@ -160,19 +168,29 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
 
         return processed_batches, detections
 
-    def gen_batch(self, lines: list[str], begin_lineid: int):
-        """从begin_lineid开始拿一个batch"""
+    def generate_batch(self, lines: list[str], begin_lineid: int) -> Tuple[str, int]:
+        """
+        从begin_lineid开始构造一个连续若干行的batch，使这个batch尽可能大，同时不超出self.token_limit指定的限制。
+
+        Args:
+            lines (list[str]): 源输入文件按行隔开的文本
+            begin_lineid (int): 欲开始构造的行下标，包含此行
+
+        Returns:
+            Tuple[str, int]: 构造的batch本身，以及游标处理到的下一行（即当前batch对应于原文的最后一行的*下一行*）行下标
+
+        """
         assert begin_lineid < len(lines)
-        buf = ''
+        buffer = ''
         for lineid in range(begin_lineid, len(lines)):
             line = lines[lineid]
-            tmp = (buf + '\n' if len(buf)>0 else '') + line
-            tks = self.encoder.encode(tmp)
-            if len(tks) >= self.token_limit:
-                return buf, lineid # 本行还没加上，所以是开区间
-            buf = tmp
-        if buf:
-            return buf, lineid + 1
+            pending_text = (buffer + '\n' if len(buffer)>0 else '') + line
+            tokens = self.encoder.encode(pending_text)
+            if len(tokens) >= self.token_limit:
+                return buffer, lineid # 本行还没加上，所以是开区间
+            buffer = pending_text
+        if buffer:
+            return buffer, lineid + 1
 
     def detect(self, lines: list[str], record_id: str, **kwargs) -> list[bool]:
         """
@@ -193,19 +211,19 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         batch_id = 0
 
         while todo_lineid < len(lines):
-            batch, next_line_id = self.gen_batch(lines, todo_lineid) # 利用已有的结果生成input_batch
+            batch, next_line_id = self.generate_batch(lines, todo_lineid) # 利用已有的结果生成input_batch
             if len(self.encoder.encode(batch)) < 20: # 结尾不能成段的噪声可能会让gpt疯狂道歉，这种情况下我们放过
                 break
 
             output_text = self.gpt_linebreak_detection_request(batch, record_id, batch_id)
             # Compare the hard line breaks in the raw text with the output text
-            align_map = GPTBatchSequentialDetector.lcs_sequence_alignment(batch, output_text)
+            # 隐含一个风险点：align_map是空的，会直接导致后续的整个文件不能执行
+            # 这种情况在GPT说胡话的时候会发生，多发地是文件的结尾部分
+            align_map, _, _ = GPTBatchSequentialDetector.lcs_sequence_alignment(batch, self.clearup_output(output_text))
+            assert len(align_map) >= 1 # 卡掉align_map == 0的情况，避免死循环浪费api，在挂机跑文件的情况下可以抓掉这个错，标记致命错误的异常文件
             input_line_offset = next_line_id - len(batch.splitlines()) # 第一行在本文件中的下标
             assert lines[input_line_offset] == batch.splitlines()[0]
             if next_line_id < len(lines):
-                if len(align_map) > 1:
-                    align_map.pop(max(align_map.keys())) # 干掉最后一个分组，避免不完全成段
-
                 todo_lineid = max(itertools.chain(*align_map.values())) + input_line_offset + 1 
             else:
                 # 已经做完了本文件，接下来不再请求了
@@ -215,13 +233,15 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
                 for igroup in igroups:
                     if igroup + 1 in igroups:
                         detections[igroup + input_line_offset] = True
+            
+            batch_id += 1
 
         return detections
 
 
 if __name__ == '__main__':
     # Test the GPTBatchSequentialDetector
-    detector = GPTBatchSequentialDetector('gpt-remote', "./cache_dir")
+    detector = GPTBatchSequentialDetector('gpt-remote', "./batch_sequential_cache_dir", use_proxy=True)
     # read val_files 432549.txt
     record_id = '453500'
     with open(f'{record_id}.txt', 'r') as f:
