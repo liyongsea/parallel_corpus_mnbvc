@@ -3,8 +3,10 @@ import argparse
 import datasets
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
+from tqdm import tqdm
 
 from text_segmenter import *
+from batch_detector import GPTBatchDetector
 from rule_based_detector import RuleBasedDetector
 
 
@@ -18,6 +20,8 @@ def main(detector_name):
         detector = RuleBasedDetector(detector_name)
     elif detector_name == 'GptOfflineDetector':
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
+    elif detector_name == 'GptBatchDetector':
+        detector = GPTBatchDetector('gpt-remote', "./cache_dir")
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -32,7 +36,7 @@ def main(detector_name):
     all_predictions, all_ground_truth = [], []
 
     # Iterate over the validation data
-    for record in validation_data:
+    for record in tqdm(validation_data):
 
         raw_text = record['raw_text']
         ground_truth = record['is_hard_linebreak']

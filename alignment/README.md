@@ -19,6 +19,8 @@ The current performance results in terms of accuracy for the available detectors
 | PunctuationAndCapitalLetterDetector  | 0.81     |
 | RuleBasedDetector                    | 0.87     |
 | GptOfflineDetector                   | 0.94     |
+| GptBatchDetector                     | 0.90     |
+
 
 These accuracy values represent the overall correct predictions made by each detector. Higher accuracy values indicate better performance in distinguishing between softline and non-softline instances.
 
