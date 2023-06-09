@@ -89,12 +89,13 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
+
+    logging.info(response.text)
+
     try:
         response_json = response.json()
     except json.JSONDecodeError:
         response_json = json.loads('{' + response.text) 
-
-    logging.info(response.text)
 
     if 'error' in response_json:
         error = response_json['error']
