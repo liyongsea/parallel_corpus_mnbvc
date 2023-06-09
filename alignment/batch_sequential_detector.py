@@ -1,4 +1,5 @@
 from collections import namedtuple
+import traceback
 from typing import Tuple
 import itertools
 from pathlib import Path
@@ -13,7 +14,7 @@ import utils
 LCSTokenInfo = namedtuple('LCSTokenInfo', ('token', 'length', 'source_line_id'))
 
 class GPTBatchSequentialDetector(HardLineBreakDetector):
-    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False):
+    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False, re_ask_times=3):
         super().__init__(name)
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -21,6 +22,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         self.token_limit = token_limit
         self.use_proxy = use_proxy
         self.encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
+        self.re_ask_times = re_ask_times
 
     @staticmethod
     def clearup_output(raw_output_from_chatgpt: str) -> list[str]:
@@ -118,10 +120,13 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
 
         return mapping, input_hit_rate, output_hit_rate
 
-    def gpt_linebreak_detection_request(self, raw_text: str, record_id: str, batch_index: int) -> str:
+    def align_gpt_linebreak_detection_request(self, raw_text: str, record_id: str, batch_index: int) -> dict[int, set[int]]:
         """
-        Sends a request to the GPT-3.5 API to detect hard line breaks in the given text.
-        Use record_id and batch_index to cache the output.
+        Sends a request to the GPT-3.5 API to detect hard line breaks in the given text, 
+        and align the given text to its output text on the fly.
+        Use `record_id` and `batch_index` to cache the output.
+        Unexpected output will not be cached and cause re-asking procedure.
+        Use `re_ask_times` to set the retry times for re-asking gpt when unexpected answer generated.
 
         Args:
             raw_text (str): The raw text to be processed.
@@ -129,44 +134,35 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             batch_index (int): The index of the batch.
 
         Returns:
-            str: The processed text.
+            dict[int, set[int]]: The aligned paragragh group, indicating a output line refers to which input lines.
         """
+
         filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
         if not filename.exists():
-            output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
-            with filename.open('w') as f:
+            for re_ask_time in range(self.re_ask_times):
+                try:
+                    output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
+                    # 隐含一个风险点：align_map是空的，会直接导致后续的整个文件不能执行
+                    # 这种情况在GPT说胡话的时候会发生，多发地是文件的结尾部分
+                    align_map, _, _ = GPTBatchSequentialDetector.lcs_sequence_alignment(raw_text, self.clearup_output(output_text))
+                    assert len(align_map) >= 1 # 卡掉align_map == 0的情况，避免死循环浪费api，在挂机跑文件的情况下可以抓掉这个错，标记致命错误的异常文件
+                    break
+                except:
+                    traceback.print_exc()
+                    print(raw_text)
+                    print('=====')
+                    print(output_text)
+                    if re_ask_time == self.re_ask_times - 1:
+                        raise
+
+            with filename.open('w') as f: # 只有有用的output才会被cache
                 json.dump(output_text, f)
         else:
             with filename.open('r') as f:
                 output_text = json.load(f)
-        return output_text
-
-    def process_batches(self, batches: list[list[str]], record_id: str) -> Tuple[list[str], list[bool]]:
-        """
-        Processes each batch of lines by sending them to the GPT-3.5 API and then 
-        saving the results to disk and cache.
-
-        Args:
-            batches (list[list[str]]): The batched lines to be processed.
-            record_id (str): The unique id of the record.
-
-        Returns:
-            Tuple[list[str], list[bool]]: The processed lines and their corresponding boolean detections.
-        """
-        processed_batches = []
-        detections = []
-
-        for i, batch in enumerate(batches):
-            raw_text = "\n".join(batch)
-
-            output_text = self.gpt_linebreak_detection_request(raw_text, record_id, i)
-            # Compare the hard line breaks in the raw text with the output text
-            is_hard_line_break = utils.compute_near_linebreak_match(raw_text, output_text, margin=10)
-
-            processed_batches.append(output_text)
-            detections.extend(is_hard_line_break)
-
-        return processed_batches, detections
+                align_map, _, _ = GPTBatchSequentialDetector.lcs_sequence_alignment(raw_text, self.clearup_output(output_text))
+            
+        return align_map
 
     def generate_batch(self, lines: list[str], begin_lineid: int) -> Tuple[str, int]:
         """
@@ -215,12 +211,9 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             if len(self.encoder.encode(batch)) < 20: # 结尾不能成段的噪声可能会让gpt疯狂道歉，这种情况下我们放过
                 break
 
-            output_text = self.gpt_linebreak_detection_request(batch, record_id, batch_id)
+            align_map = self.align_gpt_linebreak_detection_request(batch, record_id, batch_id)
             # Compare the hard line breaks in the raw text with the output text
-            # 隐含一个风险点：align_map是空的，会直接导致后续的整个文件不能执行
-            # 这种情况在GPT说胡话的时候会发生，多发地是文件的结尾部分
-            align_map, _, _ = GPTBatchSequentialDetector.lcs_sequence_alignment(batch, self.clearup_output(output_text))
-            assert len(align_map) >= 1 # 卡掉align_map == 0的情况，避免死循环浪费api，在挂机跑文件的情况下可以抓掉这个错，标记致命错误的异常文件
+
             input_line_offset = next_line_id - len(batch.splitlines()) # 第一行在本文件中的下标
             assert lines[input_line_offset] == batch.splitlines()[0]
             if next_line_id < len(lines):
