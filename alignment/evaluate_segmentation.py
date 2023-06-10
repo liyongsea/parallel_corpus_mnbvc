@@ -1,4 +1,6 @@
 import argparse
+from pathlib import Path
+import json
 
 import datasets
 import pandas as pd
@@ -26,7 +28,7 @@ def main(detector_name):
         raise ValueError(f"Unknown detector name: {detector_name}")
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train")
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train", ignore_verifications=True)
 
 
     # Initialize DataFrame to store TP, FN, FP, TN
@@ -41,7 +43,6 @@ def main(detector_name):
         raw_text = record['raw_text']
         ground_truth = record['is_hard_linebreak']
         record_id = record['record'] # fill with empty string '' if there is not exists such a record id
-
 
         # Initialize and process the text with a TextSegmenter
         segmenter = TextSegmenter(raw_text)
@@ -59,11 +60,22 @@ def main(detector_name):
         tn, fp, fn, tp = confusion_matrix(ground_truth, predicted).ravel()
 
         # Add result to the DataFrame
-        results_df = results_df.append({'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn}, ignore_index=True)
+        results_df = results_df.append({'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn, 'record_id': record_id}, ignore_index=True)
 
         # Collect the ground truth labels and predictions
         all_ground_truth.extend(ground_truth)
         all_predictions.extend(predicted)
+
+        tmp_dir = Path("./tmp")
+        tmp_dir.mkdir(exist_ok=True)
+        eval_data = {
+            "raw_text": raw_text,
+            "ground_truth": ground_truth,
+            "predicted": predicted,
+            "record_id": record_id,
+        }
+        with open(tmp_dir / f"{record_id}.json", "w") as f:
+            json.dump(eval_data, f)
 
     # Print DataFrame
     print("Results DataFrame:")

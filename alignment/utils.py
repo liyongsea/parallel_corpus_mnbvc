@@ -45,7 +45,7 @@ def create_chat_prompt(input_text: str):
     ]
 
 
-def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 3):
+def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000):
     """
     Sends the provided text to the AI model and returns its response.
 
@@ -79,16 +79,21 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                     "messages": create_chat_prompt(line_break_text),
                     "temperature": 0,
                 },
-                timeout = 60 * 5 
+                timeout = 60 * 5, verify=False
             )
             break
-        except RequestException as e:
+        # add requests.exceptions.SSLError
+        except requests.exceptions.RequestException as e:
+        # except RequestException as e:
             if i < retries - 1:  # i is zero indexed
                 logging.error(f"Request failed with {str(e)}, retrying.")
                 continue
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
+        print(f"Retry {i}")
+        import time
+        time.sleep(10)
 
     logging.info(response.text)
 
