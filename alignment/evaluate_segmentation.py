@@ -23,7 +23,7 @@ def main(detector_name):
     elif detector_name == 'GptOfflineDetector':
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     elif detector_name == 'GptBatchDetector':
-        detector = GPTBatchDetector('gpt-remote', "./cache_dir")
+        detector = GPTBatchDetector('gpt-remote', "./cache_dir_maxtoken_500", token_limit=500)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -43,7 +43,8 @@ def main(detector_name):
         raw_text = record['raw_text']
         ground_truth = record['is_hard_linebreak']
         record_id = record['record'] # fill with empty string '' if there is not exists such a record id
-
+        if record_id in {"515053"}:
+            continue
         # Initialize and process the text with a TextSegmenter
         segmenter = TextSegmenter(raw_text)
         segmenter.split_by_linebreak()
