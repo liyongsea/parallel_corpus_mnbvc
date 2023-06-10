@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 from text_segmenter import *
 from batch_detector import GPTBatchDetector
+from batch_sequential_detector import GPTBatchSequentialDetector
 from rule_based_detector import RuleBasedDetector
 
 
@@ -24,12 +25,13 @@ def main(detector_name):
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     elif detector_name == 'GptBatchDetector':
         detector = GPTBatchDetector('gpt-remote', "./cache_dir")
+    elif detector_name == 'GPTBatchSequentialDetector':
+        detector = GPTBatchSequentialDetector('gpt-remote', "./batch_sequential_cache_dir", use_proxy=True)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train", ignore_verifications=True)
-
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train").filter(lambda x: x['record'] != '515053')
 
     # Initialize DataFrame to store TP, FN, FP, TN
     results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN'])

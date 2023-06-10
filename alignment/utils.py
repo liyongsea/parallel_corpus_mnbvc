@@ -33,11 +33,14 @@ def create_chat_prompt(input_text: str):
     return [
         {
             'role': 'user', 
-            'content': '''Your task is to detect soft line breaks in text exported from a PDF and replace them with spaces, while keeping hard line breaks as they are.
-            Please note that you should only determine which line breaks to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
-            Do not add addition \n.
-            Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary line breaks.
-            '''
+            'content': '''Your task is to solve a breakline elimination problem for text exported from PDF. The input may contain unexpected breaklines that split paragraphs, and you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces. You should leave some lines that cannot form a paragraph as they are.
+
+Please note that you should only determine which breaklines to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
+
+If there is no breakline symbol should be replaced, just echo the input text as it is.
+
+Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary breaklines.
+'''
         },
         {"role": "assistant", "content": 'Please provide your text.'},
         {"role": "user", "content": input_text},
