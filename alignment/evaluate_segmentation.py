@@ -12,7 +12,7 @@ from batch_detector import GPTBatchDetector
 from rule_based_detector import RuleBasedDetector
 
 
-def main(detector_name):
+def main(detector_name, remove_long_file):
     # Instantiate the chosen detector
     if detector_name == 'DetectorA':
         detector = DetectorA(detector_name)
@@ -30,6 +30,13 @@ def main(detector_name):
     # Load the validation data from hf
     validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train", ignore_verifications=True)
 
+    if remove_long_file:
+        FILE_WORD_TH = 20000
+        for record in tqdm(validation_data):
+            raw_text = record['raw_text']
+            if len(raw_text.split(' ')) > FILE_WORD_TH:
+                print(f"remove {record['record']}, word count: {len(raw_text.split(' '))}")
+        validation_data.filter(lambda x: len(x['raw_text'].split(' ')) <= FILE_WORD_TH)
 
     # Initialize DataFrame to store TP, FN, FP, TN
     results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN'])
@@ -91,7 +98,10 @@ def main(detector_name):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Evaluate a hard line break detector.')
     parser.add_argument('detector_name', type=str, help='The name of the detector to evaluate (DetectorA or PunctuationAndCapitalLetterDetector)')
+    parser.add_argument('--remove_long_file', type=bool, default=False, help='Remove long file, typically 515053')
+    parser.add_argument('--detector_config', type=str, default=None, help='json file for detector config')
 
     args = parser.parse_args()
+    detector_config = json.loads(parser.detector_config) if parser.detector_config else {}
 
-    main(args.detector_name)
+    main(args.detector_name, args.remove_long_file)

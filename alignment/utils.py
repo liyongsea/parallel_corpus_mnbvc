@@ -2,6 +2,7 @@ import os
 import requests
 import logging
 import json
+import time
 
 import numpy as np
 
@@ -91,8 +92,7 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
-        print(f"Retry {i}")
-        import time
+        # wait 10 sec between each retry
         time.sleep(10)
 
     logging.info(response.text)
