@@ -201,7 +201,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             list[bool]: The detection results.
         """
         # processed_batches = []
-        detections = [False] * (len(lines) - 1)
+        detections = [True] * (len(lines) - 1)
 
         todo_lineid = 0
         batch_id = 0
@@ -225,7 +225,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             for igroups in align_map.values():
                 for igroup in igroups:
                     if igroup + 1 in igroups:
-                        detections[igroup + input_line_offset] = True
+                        detections[igroup + input_line_offset] = False
             
             batch_id += 1
 
