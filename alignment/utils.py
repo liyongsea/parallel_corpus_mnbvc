@@ -17,10 +17,6 @@ class UnknownError(Exception):
     pass
 
 
-class RequestException(Exception):
-    pass
-
-
 def create_chat_prompt(input_text: str): 
     """
     Creates a prompt for the AI model based on the provided input text.
@@ -85,7 +81,6 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
             break
         # add requests.exceptions.SSLError
         except requests.exceptions.RequestException as e:
-        # except RequestException as e:
             if i < retries - 1:  # i is zero indexed
                 logging.error(f"Request failed with {str(e)}, retrying.")
                 continue
