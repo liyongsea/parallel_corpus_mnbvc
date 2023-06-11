@@ -48,11 +48,11 @@ def main(detector_name, remove_long_file, detector_config):
 
     if remove_long_file:
         FILE_WORD_TH = 20000
-        for record in tqdm(validation_data):
+        for record in validation_data:
             raw_text = record['raw_text']
             if len(raw_text.split(' ')) > FILE_WORD_TH:
                 print(f"remove {record['record']}, word count: {len(raw_text.split(' '))}")
-        validation_data.filter(lambda x: len(x['raw_text'].split(' ')) <= FILE_WORD_TH)
+        validation_data = validation_data.filter(lambda x: len(x['raw_text'].split(' ')) <= FILE_WORD_TH)
 
     # Initialize DataFrame to store TP, FN, FP, TN
     results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN'])
