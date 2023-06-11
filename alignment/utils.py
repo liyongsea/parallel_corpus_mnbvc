@@ -3,6 +3,7 @@ import requests
 import logging
 import json
 import time
+from pathlib import Path
 
 import numpy as np
 
@@ -211,6 +212,48 @@ def compare_breaks(raw_text, output_text):
             is_hard_line_break.append(raw_text[i] == output_text[i])
     return is_hard_line_break
 
+
+def make_color_list(ground_truth, predicted):
+    color_list = []
+    for ref, pred in zip(ground_truth, predicted):
+        if ref:
+            if pred:
+                color = "green"
+            else:
+                color = "red"
+        else:
+            if pred:
+                color = "blue"
+            else:
+                color = None
+        color_list.append(color)
+    return color_list
+
+
+def render_html(lines, color_list):
+    formatted_lines = []
+    for i, line in enumerate(lines):
+        words = line.split()
+        last_word = words[-1]
+        color = color_list[i]
+        if color:
+            last_word = f'<span style="color:{color};">{last_word}</span>'
+        formatted_line = ' '.join(words[:-1] + [last_word])
+        formatted_lines.append(formatted_line)
+    html_content = '<br>'.join(formatted_lines)
+    return html_content
+
+
+def create_error_html_visual(raw_text, ground_truth, predicted):
+    """
+    Used to visualise the result of evaluate_segmentation
+    green for TP, red for FN, blue for FP
+    """
+    lines = raw_text.split('\n')
+    color_list = make_color_list(ground_truth, predicted)
+    color_list.append(None)
+    html_content = render_html(lines, color_list)
+    return html_content
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ import wandb
 from text_segmenter import *
 from batch_detector import GPTBatchDetector
 from rule_based_detector import RuleBasedDetector
+import utils
 
 
 def _get_folder_from_config(config):
@@ -91,8 +92,13 @@ def main(detector_name, remove_long_file, detector_config):
         # Compute confusion matrix for the current record
         tn, fp, fn, tp = confusion_matrix(ground_truth, predicted).ravel()
 
+        record_accuracy = (tp + tn) / (tp + tn + fp + fn)
+
         # Add result to the DataFrame
-        results_df = results_df.append({'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn, 'record_id': record_id}, ignore_index=True)
+        results_df = results_df.append({
+            'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn, 'record_id': record_id,
+            'accuracy': record_accuracy
+        }, ignore_index=True)
 
         # Collect the ground truth labels and predictions
         all_ground_truth.extend(ground_truth)
@@ -108,6 +114,10 @@ def main(detector_name, remove_long_file, detector_config):
         # Add data to the artifact as a JSON file
         with artifact.new_file(f"{record_id}.json", mode="w") as f:
             json.dump(eval_data, f)
+
+        html_content = utils.create_error_html_visual(raw_text, ground_truth, predicted)
+        with artifact.new_file(f"{record_id}.html", mode="w") as f:
+            f.write(html_content)
     
     run.log_artifact(artifact)
 
