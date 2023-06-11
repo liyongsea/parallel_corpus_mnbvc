@@ -75,9 +75,7 @@ def main(detector_name, remove_long_file, detector_config):
 
         raw_text = record['raw_text']
         ground_truth = record['is_hard_linebreak']
-        record_id = record['record'] # fill with empty string '' if there is not exists such a record id
-        if record_id in {"515053"}:
-            continue
+        record_id = record['record']
         # Initialize and process the text with a TextSegmenter
         segmenter = TextSegmenter(raw_text)
         segmenter.split_by_linebreak()
