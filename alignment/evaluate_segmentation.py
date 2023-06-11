@@ -6,6 +6,7 @@ import datasets
 import pandas as pd
 from sklearn.metrics import confusion_matrix, classification_report
 from tqdm import tqdm
+import wandb
 
 from text_segmenter import *
 from batch_detector import GPTBatchDetector
@@ -42,6 +43,15 @@ def main(detector_name, remove_long_file, detector_config):
         detector = GPTBatchDetector('gpt-remote', cache_dir, token_limit=token_limit)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
+
+    # Create a new wandb Artifact
+    run = wandb.run  # get the current run
+    artifact = wandb.Artifact(
+        name="evaluation_artifacts",
+        type="dataset",
+        description="JSON files containing raw text, ground truth, predictions and record_id",
+        metadata=dict(detector_name=detector_name))  # You can include more metadata as needed
+
 
     # Load the validation data from hf
     validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train", ignore_verifications=True)
@@ -90,16 +100,18 @@ def main(detector_name, remove_long_file, detector_config):
         all_ground_truth.extend(ground_truth)
         all_predictions.extend(predicted)
 
-        tmp_dir = Path("./tmp")
-        tmp_dir.mkdir(exist_ok=True)
         eval_data = {
             "raw_text": raw_text,
             "ground_truth": ground_truth,
             "predicted": predicted,
             "record_id": record_id,
         }
-        with open(tmp_dir / f"{record_id}.json", "w") as f:
+
+        # Add data to the artifact as a JSON file
+        with artifact.new_file(f"{record_id}.json", mode="w") as f:
             json.dump(eval_data, f)
+    
+    run.log_artifact(artifact)
 
     # Print DataFrame
     print("Results DataFrame:")
@@ -107,8 +119,17 @@ def main(detector_name, remove_long_file, detector_config):
     print()
 
     # Compute and print classification report
+    classification_results = classification_report(all_ground_truth, all_predictions, output_dict=True)
+    classification_results = pd.DataFrame(classification_results).transpose()
     print("Classification Report:")
-    print(classification_report(all_ground_truth, all_predictions))
+    print(classification_results)
+
+    # Log metrics to wandb
+    wandb.log({
+        "Result per record": wandb.Table(dataframe=results_df),
+        "Classification Report": wandb.Table(dataframe=classification_results) # Convert classification report to DataFrame
+    })
+
 
 
 if __name__ == "__main__":
@@ -120,4 +141,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     detector_config = json.loads(args.detector_config) if args.detector_config else {}
 
+    wandb.init(project="text_segmentation", name="token_length_256")
     main(args.detector_name, args.remove_long_file, detector_config)
+    wandb.finish()
