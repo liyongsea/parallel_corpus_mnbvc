@@ -12,7 +12,20 @@ from batch_detector import GPTBatchDetector
 from rule_based_detector import RuleBasedDetector
 
 
-def main(detector_name, remove_long_file):
+def _get_folder_from_config(config):
+    if 'cache_dir' in config:
+        cache_dir = config['cache_dir']
+    else:
+        if config:
+            # join all params in config to create the cache dir
+            # sort the key to make sure the cache dir is the same
+            cache_dir = 'cache_dir_' + '_'.join([f"{k}_{v}" for k, v in sorted(config.items())])
+        else:
+            cache_dir = 'cache_dir'
+    return cache_dir
+
+
+def main(detector_name, remove_long_file, detector_config):
     # Instantiate the chosen detector
     if detector_name == 'DetectorA':
         detector = DetectorA(detector_name)
@@ -23,7 +36,10 @@ def main(detector_name, remove_long_file):
     elif detector_name == 'GptOfflineDetector':
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     elif detector_name == 'GptBatchDetector':
-        detector = GPTBatchDetector('gpt-remote', "./cache_dir_maxtoken_500", token_limit=500)
+        print("using confing", detector_config)
+        token_limit = detector_config.get('token_limit', 1400)
+        cache_dir = _get_folder_from_config(detector_config)
+        detector = GPTBatchDetector('gpt-remote', cache_dir, token_limit=token_limit)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -102,6 +118,6 @@ if __name__ == "__main__":
     parser.add_argument('--detector_config', type=str, default=None, help='json file for detector config')
 
     args = parser.parse_args()
-    detector_config = json.loads(parser.detector_config) if parser.detector_config else {}
+    detector_config = json.loads(args.detector_config) if args.detector_config else {}
 
-    main(args.detector_name, args.remove_long_file)
+    main(args.detector_name, args.remove_long_file, detector_config)
