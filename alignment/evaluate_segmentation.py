@@ -145,10 +145,11 @@ if __name__ == "__main__":
     parser.add_argument('detector_name', type=str, help='The name of the detector to evaluate (DetectorA or PunctuationAndCapitalLetterDetector)')
     parser.add_argument('--remove_long_file', type=bool, default=False, help='Remove long file, typically 515053')
     parser.add_argument('--detector_config', type=str, default=None, help='json file for detector config')
+    parser.add_argument('--run_name', type=str, default=None, help='run name for wandb')
 
     args = parser.parse_args()
     detector_config = json.loads(args.detector_config) if args.detector_config else {}
 
-    wandb.init(project="text_segmentation", name="token_length_256")
+    wandb.init(project="text_segmentation", name=args.run_name)
     main(args.detector_name, args.remove_long_file, detector_config)
     wandb.finish()
