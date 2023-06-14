@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import logging
 import json
@@ -11,10 +12,11 @@ logging.basicConfig(filename='chatgptoutputs.log', level=logging.INFO, format='%
 class ExceededContextLength(Exception):
     pass
 
-
 class UnknownError(Exception):
     pass
 
+class ServerOverloadedError(Exception):
+    pass
 
 class RequestException(Exception):
     pass
@@ -84,28 +86,33 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 },
                 timeout = 60 * 5 
             )
+            logging.info(response.text)
+            try:
+                response_json = response.json()
+            except json.JSONDecodeError:
+                response_json = json.loads('{' + response.text) 
+
+            if 'error' in response_json:
+                error = response_json['error']
+                if 'code' in error and error['code'] == 'invalid_request_error':
+                    raise ExceededContextLength(error['message'])
+                elif error.get('type') == 'server_error' and 'overloaded' in error.get('message', ''):
+                    raise ServerOverloadedError(error['message']) # 这个错误是可以接住并且通过sleep and retry来解决的
+                else:
+                    raise UnknownError(error['message'])
+
             break
-        except RequestException as e:
+        except (RequestException, ServerOverloadedError) as e:
             if i < retries - 1:  # i is zero indexed
                 logging.error(f"Request failed with {str(e)}, retrying.")
+                time.sleep(2)
                 continue
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
 
-    logging.info(response.text)
 
-    try:
-        response_json = response.json()
-    except json.JSONDecodeError:
-        response_json = json.loads('{' + response.text) 
 
-    if 'error' in response_json:
-        error = response_json['error']
-        if 'code' in error and error['code'] == 'invalid_request_error':
-            raise ExceededContextLength(error['message'])
-        else:
-            raise UnknownError(error['message'])
 
     return response_json['choices'][0]['message']['content']
 
