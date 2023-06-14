@@ -32,7 +32,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         处理返回的数据中包含多个空行（整行为空或仅含空字符）的情况，保证文本以\n分开之后不会出现空行
         返回原文本以\n切分后的列表
         """
-        return re.sub(r'\n\s+', '\n', raw_output_from_chatgpt, flags=re.M).strip().splitlines()
+        return re.sub(r'\n\s*', '\n', raw_output_from_chatgpt, flags=re.M).strip().splitlines()
 
     @staticmethod
     def tokenize_by_space_splited_word(input_lines: list[str], output_lines: list[str], offset=0) -> Tuple[list[LCSTokenInfo], list[LCSTokenInfo]]:
