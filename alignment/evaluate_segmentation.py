@@ -23,13 +23,13 @@ def main(detector_name):
         detector = OfflineDetector(detector_name, "bot-yaya/EN_PARAGRAPH_GPT_JOINED")
     elif detector_name == 'GptBatchDetector':
         detector = GPTBatchDetector('gpt-remote', "./cache_dir")
-    elif detector_name == 'GPTBatchSequentialDetector':
+    elif detector_name == "GptBatchSequentialDetector":
         detector = GPTBatchSequentialDetector('gpt-remote', "./batch_sequential_cache_dir", use_proxy=True)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train").filter(lambda x: x['record'] != '515053')
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph_19", split="train").filter(lambda x: x['record'] != '515053')
 
 
     # Initialize DataFrame to store TP, FN, FP, TN
