@@ -66,7 +66,7 @@ def main(detector_name, remove_long_file, detector_config):
         validation_data = validation_data.filter(lambda x: len(x['raw_text'].split(' ')) <= FILE_WORD_TH)
 
     # Initialize DataFrame to store TP, FN, FP, TN
-    results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN'])
+    results_df = pd.DataFrame(columns=['TP', 'FN', 'FP', 'TN', 'record_id','accuracy'])
 
     # Initialize the lists to collect all predictions and ground truth labels
     all_predictions, all_ground_truth = [], []
@@ -94,11 +94,11 @@ def main(detector_name, remove_long_file, detector_config):
 
         record_accuracy = (tp + tn) / (tp + tn + fp + fn)
 
-        # Add result to the DataFrame
-        results_df = results_df.append({
-            'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn, 'record_id': record_id,
-            'accuracy': record_accuracy
-        }, ignore_index=True)
+    
+        # Create results in a loop and Add this result to the DataFrame
+        result_pd_row = pd.DataFrame({'TP': tp, 'FN': fn, 'FP': fp, 'TN': tn, 'accuracy': record_accuracy, 'record_id': record_id}, index=[0])
+        results_df = pd.concat([results_df, result_pd_row], ignore_index=True)
+
 
         # Collect the ground truth labels and predictions
         all_ground_truth.extend(ground_truth)

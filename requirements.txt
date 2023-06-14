@@ -3,3 +3,4 @@ transformers==4.20.0
 sentencepiece
 lxml
 wandb
+scikit-learn
