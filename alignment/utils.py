@@ -2,6 +2,8 @@ import os
 import requests
 import logging
 import json
+import time
+from pathlib import Path
 
 import numpy as np
 
@@ -13,10 +15,6 @@ class ExceededContextLength(Exception):
 
 
 class UnknownError(Exception):
-    pass
-
-
-class RequestException(Exception):
     pass
 
 
@@ -45,7 +43,7 @@ def create_chat_prompt(input_text: str):
     ]
 
 
-def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 3):
+def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000):
     """
     Sends the provided text to the AI model and returns its response.
 
@@ -79,16 +77,19 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                     "messages": create_chat_prompt(line_break_text),
                     "temperature": 0,
                 },
-                timeout = 60 * 5 
+                timeout = 60 * 5, verify=False
             )
             break
-        except RequestException as e:
+        # add requests.exceptions.SSLError
+        except requests.exceptions.RequestException as e:
             if i < retries - 1:  # i is zero indexed
                 logging.error(f"Request failed with {str(e)}, retrying.")
                 continue
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
+        # wait 10 sec between each retry
+        time.sleep(10)
 
     logging.info(response.text)
 
@@ -211,6 +212,48 @@ def compare_breaks(raw_text, output_text):
             is_hard_line_break.append(raw_text[i] == output_text[i])
     return is_hard_line_break
 
+
+def make_color_list(ground_truth, predicted):
+    color_list = []
+    for ref, pred in zip(ground_truth, predicted):
+        if ref:
+            if pred:
+                color = "green"
+            else:
+                color = "red"
+        else:
+            if pred:
+                color = "blue"
+            else:
+                color = None
+        color_list.append(color)
+    return color_list
+
+
+def render_html(lines, color_list):
+    formatted_lines = []
+    for i, line in enumerate(lines):
+        words = line.split()
+        last_word = words[-1]
+        color = color_list[i]
+        if color:
+            last_word = f'<span style="color:{color};">{last_word}</span>'
+        formatted_line = ' '.join(words[:-1] + [last_word])
+        formatted_lines.append(formatted_line)
+    html_content = '<br>'.join(formatted_lines)
+    return html_content
+
+
+def create_error_html_visual(raw_text, ground_truth, predicted):
+    """
+    Used to visualise the result of evaluate_segmentation
+    green for TP, red for FN, blue for FP
+    """
+    lines = raw_text.split('\n')
+    color_list = make_color_list(ground_truth, predicted)
+    color_list.append(None)
+    html_content = render_html(lines, color_list)
+    return html_content
 
 
 if __name__ == "__main__":

@@ -6,9 +6,19 @@ This module evaluates the performance of a softline vs hardline detection method
 A line break is a typographical feature that indicates the end of a line and the start of a new line in a text document. In some cases, line breaks represent a hard break, indicating a clear separation between two lines of text. In other cases, line breaks are soft breaks, used for formatting purposes and to improve the readability of the text. The goal of the softline vs hardline detection task is to distinguish between these two types of line breaks accurately.
 
 ## Usage
+Please make sure you have done
+```
+pip install -r requirements.txt
+```
+
+Then login in wandb. This evaluatoin use wandb to track evaluation result. Join the org https://wandb.ai/mnbvc
+```
+wandb login
+```
+
 Here is an example command to evaluate the performance of the "PunctuationAndCapitalLetterDetector":
 ```
-python evaluate_segmentation.py PunctuationAndCapitalLetterDetector
+python evaluate_segmentation.py GptBatchDetector --remove_long_file True --detector_config '{"token_limit": 256}'
 ```
 
 ## Performance Results
@@ -19,7 +29,7 @@ The current performance results in terms of accuracy for the available detectors
 | PunctuationAndCapitalLetterDetector  | 0.81     |
 | RuleBasedDetector                    | 0.87     |
 | GptOfflineDetector                   | 0.94     |
-| GptBatchDetector                     | 0.90     |
+| GptBatchDetector_t256                | 0.96     |
 
 
 These accuracy values represent the overall correct predictions made by each detector. Higher accuracy values indicate better performance in distinguishing between softline and non-softline instances.
