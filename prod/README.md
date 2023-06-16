@@ -7,8 +7,11 @@ pip install -r requirements.txt
 ### 目录结构
 
 > |------ paragraph_assembler.py        启动脚本（main）
+> 
 > |------ record_index_map.py           record对应一些相关状态/数据的映射表
+>
 > |------ test_paragraph_assembler.py   并发测试
+> 
 > |------ record_index_map.json.lock    锁控制文件（脚本内容涉及到修改本地文件并要求原子性）
 >
 
