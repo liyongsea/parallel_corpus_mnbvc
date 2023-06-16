@@ -77,6 +77,9 @@ class GPTBatchDetector(HardLineBreakDetector):
         else:
             with filename.open('r') as f:
                 output_text = json.load(f)
+        output_text = output_text.replace('\n\n', '\n')
+        if '\n\n' in output_text:
+            print(record_id, batch_index)
         return output_text
 
     def process_batches(self, batches: list[list[str]], record_id: str) -> Tuple[list[str], list[bool]]:
