@@ -40,7 +40,7 @@ options:
   --concurrent_number 并发线程数 default=10
 
 
-## record_index_map.json record映射相关状态以及信息
+## record_index_map.json
 
 #### 说明：
 record映射相关状态以及信息
