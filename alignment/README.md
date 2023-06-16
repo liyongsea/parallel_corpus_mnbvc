@@ -26,15 +26,16 @@ The current performance results in terms of accuracy for the available detectors
 
 | Detector Name                        | Accuracy |
 |--------------------------------------|----------|
-| PunctuationAndCapitalLetterDetector  | 0.81     |
-| RuleBasedDetector                    | 0.87     |
-| GptOfflineDetector                   | 0.94     |
-| GptBatchDetector_t256                | 0.96     |
+| PunctuationAndCapitalLetterDetector  | 0.808260 |
+| RuleBasedDetector                    | 0.866769 |
+| GptOfflineDetector_t1400             | 0.941427 |
+| GptBatchDetector_t256                | 0.96?    |
+| GptBatchSequentialDetector_t500      | 0.963088 |
 
 
 These accuracy values represent the overall correct predictions made by each detector. Higher accuracy values indicate better performance in distinguishing between softline and non-softline instances.
 
-## Validation Dataset - human_joined_en_paragraph
+## Validation Dataset - human_joined_en_paragraph_19
 The validation dataset used in this evaluation consists of the following characteristics:
 - 19 files randomly selected from the unparallel corpus dataset.
 - Contains English text only.
