@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ### paragraph_assembler.py
 
-#### 指令:
+#### 指令：
 ```shell
 python paragraph_assembler.py --key=sk-xxxxxx --test=false
 ```
@@ -27,9 +27,12 @@ python paragraph_assembler.py --key=sk-xxxxxx --test=false
   --test 是否测试此脚本 （true/false）default=false
 
 
-### test_paragraph_assembler.py （目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏）
+### test_paragraph_assembler.py 
 
-#### 指令:
+#### 说明：
+目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏
+
+#### 指令：
 ```shell
 python test_paragraph_assembler.py --concurrent_number=10
 ```
