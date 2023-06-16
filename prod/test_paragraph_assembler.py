@@ -10,7 +10,7 @@ def run_script(script_path):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--concurrent_number', type=str, default=10, help='concurrent number')
+    parser.add_argument('--concurrent_number', type=int, default=10, help='concurrent number')
     args = parser.parse_args()
 
     concurrent_number = args.concurrent_number
