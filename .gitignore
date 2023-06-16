@@ -6,6 +6,9 @@ __pycache__/
 downloaded_websites
 download_pdf
 error_url.txt
+cache_*
+wandb
+
 
 # C extensions
 *.so
