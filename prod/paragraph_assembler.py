@@ -13,10 +13,12 @@ LOCK_FILE_LOCATION = f"{os.path.dirname(os.path.abspath(__file__))}/record_index
 class ParagraphAssembler:
 
     def __init__(self, test=False):
+        self.test = test
+
+        self.record, self.dataset_row = self.get_dataset_row()
+        print(f"{self.record} start")
         
         if test:
-            self.record, self.dataset_row = self.get_dataset_row()
-            print(f"{self.record} start")
             self.done_in_json_settings_file()
             print(f"{self.record} success")
         
