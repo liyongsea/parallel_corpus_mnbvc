@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ## paragraph_assembler.py
 
-#### 指令：
+#### shell：
 
 ```shell
 python paragraph_assembler.py --key=sk-xxxxxx --test=false
@@ -36,12 +36,13 @@ python paragraph_assembler.py --key=sk-xxxxxx --test=false
 
 目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏
 
-#### 指令：
+#### shell：
 
 ```shell
 python test_paragraph_assembler.py --concurrent_number=10
 ```
 options:
+
   --concurrent_number 并发线程数 default=10
 
 
