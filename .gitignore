@@ -8,7 +8,7 @@ download_pdf
 error_url.txt
 cache_*
 wandb
-
+*.json.lock
 
 # C extensions
 *.so

@@ -4,3 +4,4 @@ sentencepiece
 lxml
 wandb
 scikit-learn
+filelock
