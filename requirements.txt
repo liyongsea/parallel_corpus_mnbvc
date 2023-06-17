@@ -4,7 +4,6 @@ sentencepiece
 lxml
 wandb
 scikit-learn
-filelock
 pylcs
 tiktoken
 
