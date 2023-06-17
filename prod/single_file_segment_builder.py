@@ -119,13 +119,17 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     key = args.key
+    test_mode = args.test_mode
 
     if not key:
         raise ValueError("params --key must input")
 
-    singleFileSegmentbuilder = SingleFileSegmentbuilder(args.test_mode, api_key=key)
+    singleFileSegmentbuilder = SingleFileSegmentbuilder(test_mode, api_key=key)
 
+    #  使wandn不会吧key记录到wandb-metadata.json中
+    sys.argv = [arg for arg in sys.argv if not arg.startswith("--key")]
     wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{singleFileSegmentbuilder.record}")
+    
     run = wandb.run
 
     artifact = wandb.Artifact(
@@ -134,12 +138,13 @@ if __name__ == "__main__":
         description="JSON files only containing predictions and record_id",
         metadata=dict(record=singleFileSegmentbuilder.record))
 
+    # 如果是在测试则不需要运行gpt相关命令
+    if not test_mode:
+        singleFileSegmentbuilder.start()
 
-    singleFileSegmentbuilder.start()
     singleFileSegmentbuilder.post_process()
     singleFileSegmentbuilder.done_in_json_settings_file()
     print(f"{singleFileSegmentbuilder.record} success")
-
 
     with artifact.new_file(f"{singleFileSegmentbuilder.record}-is-hard-linebreak.json", mode="w") as f:
         json.dump(singleFileSegmentbuilder.predicted, f)
