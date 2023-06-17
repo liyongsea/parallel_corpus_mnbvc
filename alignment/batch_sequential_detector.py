@@ -143,8 +143,8 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         在执行规则2后，align_map可能会变为空，这种情况下应该视为GPT的返回对于成段任务没有意义，并在外层函数中特殊处理。
 
         Args:
-            input_lines(str): 输入的一段话
-            output_lines(str): chatgpt给对齐好的一段话
+            input_lines(str): 输入的一段话，需要保证不存在空行
+            output_lines(str): chatgpt给对齐好的一段话，需要保证不存在空行
         
         Returns:
             align_map(dict[int, Tuple[int, int]]): 输出行号对应输入的行号，可以参见函数lcs_sequence_alignment的样例
