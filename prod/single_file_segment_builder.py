@@ -8,11 +8,17 @@ from filelock import FileLock
 import wandb
 from pathlib import Path
 import sys
+import logging
+
+
+logging.basicConfig(level=logging.INFO)
+
 
 # 防止用户在其他位置调用此脚本，从而找不到库的情况
 current_dir = os.path.dirname(os.path.abspath(__file__))
 alignment_path = os.path.join(current_dir, '..')
 sys.path.append(alignment_path)
+
 
 import alignment.utils as utils
 from alignment.batch_detector import GPTBatchDetector
@@ -30,7 +36,7 @@ class SingleFileSegmentbuilder:
     def __init__(self, api_key=None):
         self.api_key = api_key
         self.dataset_row = self.get_dataset_row()
-        print(f"{self.record} start")
+        logging.info(f"{self.record} start")
 
 
     def done_in_json_settings_file(self):
@@ -117,40 +123,49 @@ class SingleFileSegmentbuilder:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--api_key', type=str, default=False, help='openai api key')
-    parser.add_argument('--test_mode', type=str, default=False, help='是否测试此脚本')
+    parser.add_argument('--test_mode', type=int, default=0, help='是否测试此脚本 0/1')
 
     args = parser.parse_args()
     api_key = args.api_key
     test_mode = args.test_mode
 
+    # 测试
+    if test_mode:
+        singleFileSegmentbuilder = SingleFileSegmentbuilder(api_key=api_key)
+        record = singleFileSegmentbuilder.record
+        print(f"{record} start")
+        print(f"{args.api_key} api_key")
+        singleFileSegmentbuilder.done_in_json_settings_file()
+        print(f"{record} success")
+        sys.exit(0)
+
     if not api_key:
         raise ValueError("params --key must input")
 
     singleFileSegmentbuilder = SingleFileSegmentbuilder(api_key=api_key)
+    record = singleFileSegmentbuilder.record
 
-    #  使wandn不会把key记录到wandb-metadata.json中
+    #  使wandn不会把openai key记录到wandb-metadata.json中
     sys.argv = [arg for arg in sys.argv if not arg.startswith("--key")]
-    wandb.init(project="single_file_segment_builder", name=f"GPTBatchDetector-{singleFileSegmentbuilder.record}")
-    
+
+    wandb.init(project="single_file_segment_builder", name=f"GPTBatchDetector-{record}")
     run = wandb.run
 
     artifact = wandb.Artifact(
         name="single_file_segment_builder",
         type="dataset",
         description="JSON files only containing predictions and record_id",
-        metadata=dict(record=singleFileSegmentbuilder.record))
+        metadata=dict(record=record))
 
-    # 如果是在测试则不需要运行gpt相关命令
-    if not test_mode:
-        predicted = singleFileSegmentbuilder.start()
 
+    predicted = singleFileSegmentbuilder.start()
     singleFileSegmentbuilder.post_process()
     singleFileSegmentbuilder.done_in_json_settings_file()
 
-    print(f"{singleFileSegmentbuilder.record} success")
+    logging.info(f"{record} success")
 
-    with artifact.new_file(f"{singleFileSegmentbuilder.record}-is-hard-linebreak.json", mode="w") as f:
-        json.dump(singleFileSegmentbuilder.predicted, f)
+    with artifact.new_file(f"{record}-is-hard-linebreak.json", mode="w") as f:
+        json.dump(predicted, f)
 
     run.log_artifact(artifact)
 

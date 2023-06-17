@@ -86,7 +86,7 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 },
                 timeout = 60 * 5, verify=False
             )
-            logging.info(response.text)
+            logging.debug(response.text)
             try:
                 response_json = response.json()
             except json.JSONDecodeError:
