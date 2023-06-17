@@ -25,7 +25,7 @@ if __name__ == '__main__':
     scripts = []
 
     for _ in range(concurrent_number):
-        scripts.append(['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--api_key={generate_random_string(20)}", "--test_mode=1"])
+        scripts.append(['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--api_key={generate_random_string(20)}", "--test_mode=0"])
 
     # 创建线程池
     with concurrent.futures.ThreadPoolExecutor() as executor:
