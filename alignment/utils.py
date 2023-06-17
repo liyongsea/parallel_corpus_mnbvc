@@ -91,7 +91,6 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 response_json = response.json()
             except json.JSONDecodeError:
                 response_json = json.loads('{' + response.text) 
-
             if 'error' in response_json:
                 error = response_json['error']
                 if 'code' in error and error['code'] == 'invalid_request_error':

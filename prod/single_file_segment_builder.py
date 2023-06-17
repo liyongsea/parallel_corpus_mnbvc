@@ -27,8 +27,7 @@ Path(CACHE_DIR).mkdir(exist_ok=True)
 
 class SingleFileSegmentbuilder:
 
-    def __init__(self, test_mode=False, api_key=None):
-        self.test_mode = test_mode
+    def __init__(self, api_key=None):
         self.api_key = api_key
         self.dataset_row = self.get_dataset_row()
         print(f"{self.record} start")
@@ -117,36 +116,37 @@ class SingleFileSegmentbuilder:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--key', type=str, default=False, help='openai api key')
+    parser.add_argument('--api_key', type=str, default=False, help='openai api key')
     parser.add_argument('--test_mode', type=str, default=False, help='是否测试此脚本')
 
     args = parser.parse_args()
-    key = args.key
+    api_key = args.api_key
     test_mode = args.test_mode
 
-    if not key:
+    if not api_key:
         raise ValueError("params --key must input")
 
-    singleFileSegmentbuilder = SingleFileSegmentbuilder(test_mode, api_key=key)
+    singleFileSegmentbuilder = SingleFileSegmentbuilder(api_key=api_key)
 
-    #  使wandn不会吧key记录到wandb-metadata.json中
+    #  使wandn不会把key记录到wandb-metadata.json中
     sys.argv = [arg for arg in sys.argv if not arg.startswith("--key")]
-    wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{singleFileSegmentbuilder.record}")
+    wandb.init(project="single_file_segment_builder", name=f"GPTBatchDetector-{singleFileSegmentbuilder.record}")
     
     run = wandb.run
 
     artifact = wandb.Artifact(
-        name="paragraph_assembler",
+        name="single_file_segment_builder",
         type="dataset",
         description="JSON files only containing predictions and record_id",
         metadata=dict(record=singleFileSegmentbuilder.record))
 
     # 如果是在测试则不需要运行gpt相关命令
     if not test_mode:
-        singleFileSegmentbuilder.start()
+        predicted = singleFileSegmentbuilder.start()
 
     singleFileSegmentbuilder.post_process()
     singleFileSegmentbuilder.done_in_json_settings_file()
+
     print(f"{singleFileSegmentbuilder.record} success")
 
     with artifact.new_file(f"{singleFileSegmentbuilder.record}-is-hard-linebreak.json", mode="w") as f:

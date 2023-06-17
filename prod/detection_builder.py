@@ -22,14 +22,14 @@ if __name__ == '__main__':
         letters = string.ascii_letters
         return ''.join(random.choice(letters) for _ in range(length))
  
-    # scripts = [
-    #     ['python', f'{os.path.dirname(os.path.abspath(__file__))}/paragraph_assembler.py', f"--key={generate_random_string(20)}", "--test=true"]
-    # ] * concurrent_number
-
     scripts = [
-        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--key=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", "--test_mode=true"],
-        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--key=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", "--test_mode=true"]
-    ] * 4
+        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--key={generate_random_string(20)}", "--test=true"]
+    ] * concurrent_number
+
+    # scripts = [
+    #     ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--api_key=sk-", "--test_mode=True"],
+    #     ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--api_key=sk-", "--test_mode=True"]
+    # ] * 4
 
     # 创建线程池
     with concurrent.futures.ThreadPoolExecutor() as executor:
