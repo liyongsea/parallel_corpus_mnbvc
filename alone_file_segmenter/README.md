@@ -19,11 +19,11 @@ pip install -r requirements.txt
 >
 > - 在展示"wandb: Paste an API key from your profile and hit enter, or press ctrl+c to quit:"时，粘贴key，并按下Enter
 > 
-> 3. 测试: bash> python ./alone_file_segmenter/detection_builder.py --concurrent_number=10
+> 3. 测试: ```bash python ./alone_file_segmenter/detection_builder.py --concurrent_number=10```
 >
 > - 如输出"test success“测试成功
 > 
-> 4. 生产： bash> python ./alone_file_segmenter/single_file_segment_builder.py --key=sk-xxxxxx --test_mode=0 (如果并发，按照这个命令调用即可)
+> 4. 生产： ```bash python ./alone_file_segmenter/single_file_segment_builder.py --key=sk-xxxxxx --test_mode=0 (如果并发，按照这个命令调用即可)```
 
 
 
