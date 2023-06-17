@@ -4,3 +4,5 @@ sentencepiece
 lxml
 wandb
 scikit-learn
+pylcs
+tiktoken
