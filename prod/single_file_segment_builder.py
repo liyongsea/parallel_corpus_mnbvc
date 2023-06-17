@@ -82,14 +82,17 @@ class SingleFileSegmentbuilder:
                         record_index_map[record]["processing"] = True
                         self.record = record
                         break
-
+                
                 f.seek(0) # 将文件指针移动到文件开头
                 f.truncate() # 清空文件内容
 
                 json.dump(record_index_map, f) # 将更新后的record索引映射写回文件
                 f.flush() # 将文件内容刷新到磁盘
 
-                dataset = datasets.load_dataset("ranWang/un_pdf_text_data_test", verification_mode="no_checks")["randomTest10000"]
+                if not prepare_dataset_index:
+                    raise Exception("Could not find next available file")
+
+                dataset = datasets.load_dataset("bot-yaya/un_pdf_random10000_preprocessed", verification_mode="no_checks")["train"]
                 # 返回准备的数据集索引对应的数据
                 return dataset[prepare_dataset_index]
 
