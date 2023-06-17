@@ -46,7 +46,7 @@ def main(detector_name, remove_long_file, detector_config):
     elif detector_name == "GptBatchSequentialDetector":
         print("using confing", detector_config)
         token_limit = detector_config.get('token_limit', 1400)
-        cache_dir = _get_folder_from_config(detector_config)
+        cache_dir = 'batch_sequential_' + _get_folder_from_config(detector_config)
         detector = GPTBatchSequentialDetector('gpt-remote', cache_dir, token_limit=token_limit, use_proxy=True)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
