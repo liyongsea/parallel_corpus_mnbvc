@@ -43,7 +43,7 @@ def create_chat_prompt(input_text: str):
     ]
 
 
-def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000):
+def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000, api_key = None):
     """
     Sends the provided text to the AI model and returns its response.
 
@@ -58,7 +58,9 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
     Returns:
         str: The AI model's response.
     """
-    api_key = os.environ.get('OPENAI_API_KEY')
+    if not api_key:
+        api_key = os.environ.get('OPENAI_API_KEY')
+
     if not use_proxy:
         url = "https://api.openai.com/v1/chat/completions"
     else:

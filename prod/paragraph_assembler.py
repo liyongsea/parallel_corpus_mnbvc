@@ -27,8 +27,9 @@ Path(CACHE_DIR).mkdir(exist_ok=True)
 
 class ParagraphAssembler:
 
-    def __init__(self, test=False):
+    def __init__(self, test=False, api_key=None):
         self.test = test
+        self.api_key = api_key
         self.dataset_row = self.get_dataset_row()
         print(f"{self.record} start")
 
@@ -99,7 +100,7 @@ class ParagraphAssembler:
 
 
     def start(self):
-        detector = GPTBatchDetector('gpt-remote', CACHE_DIR)
+        detector = GPTBatchDetector('gpt-remote', CACHE_DIR, api_key=self.api_key)
         lines = self.dataset_row['en'].splitlines()
 
         predicted = detector.detect(lines, record_id=self.record)
@@ -126,9 +127,7 @@ if __name__ == "__main__":
     if not key:
         raise ValueError("params --key must input")
 
-    os.environ['OPENAI_API_KEY'] = key
-
-    paragraphAssembler = ParagraphAssembler(args.test)
+    paragraphAssembler = ParagraphAssembler(args.test, api_key=key)
 
     wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{paragraphAssembler.record}")
     run = wandb.run
@@ -138,7 +137,6 @@ if __name__ == "__main__":
         type="dataset",
         description="JSON files only containing predictions and record_id",
         metadata=dict(record=paragraphAssembler.record))
-
 
     paragraphAssembler.start()
     paragraphAssembler.post_process()
