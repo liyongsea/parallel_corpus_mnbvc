@@ -27,8 +27,8 @@ if __name__ == '__main__':
     # ] * concurrent_number
 
     scripts = [
-        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/paragraph_assembler.py', f"--key=sk-F", "--test=true"],
-        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/paragraph_assembler.py', f"--key=sk-q", "--test=true"]
+        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--key=sk-F", "--test_mode=true"],
+        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/single_file_segment_builder.py', f"--key=sk-q", "--test_mode=true"]
     ] 
 
     # 创建线程池

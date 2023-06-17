@@ -25,18 +25,14 @@ CACHE_DIR = f"{os.path.dirname(os.path.abspath(__file__))}/gpt_cache"
 
 Path(CACHE_DIR).mkdir(exist_ok=True)
 
-class ParagraphAssembler:
+class SingleFileSegmentbuilder:
 
-    def __init__(self, test=False, api_key=None):
-        self.test = test
+    def __init__(self, test_mode=False, api_key=None):
+        self.test_mode = test_mode
         self.api_key = api_key
         self.dataset_row = self.get_dataset_row()
         print(f"{self.record} start")
 
-        if test:
-            self.done_in_json_settings_file()
-            print(f"{self.record} success")
-        
 
     def done_in_json_settings_file(self):
         """
@@ -119,7 +115,7 @@ class ParagraphAssembler:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--key', type=str, default=False, help='openai api key')
-    parser.add_argument('--test', type=str, default=False, help='是否测试此脚本')
+    parser.add_argument('--test_mode', type=str, default=False, help='是否测试此脚本')
 
     args = parser.parse_args()
     key = args.key
@@ -127,22 +123,26 @@ if __name__ == "__main__":
     if not key:
         raise ValueError("params --key must input")
 
-    paragraphAssembler = ParagraphAssembler(args.test, api_key=key)
+    singleFileSegmentbuilder = SingleFileSegmentbuilder(args.test_mode, api_key=key)
 
-    wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{paragraphAssembler.record}")
+    wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{singleFileSegmentbuilder.record}")
     run = wandb.run
 
     artifact = wandb.Artifact(
         name="paragraph_assembler",
         type="dataset",
         description="JSON files only containing predictions and record_id",
-        metadata=dict(record=paragraphAssembler.record))
+        metadata=dict(record=singleFileSegmentbuilder.record))
 
-    paragraphAssembler.start()
-    paragraphAssembler.post_process()
 
-    with artifact.new_file(f"{paragraphAssembler.record}-is-hard-linebreak.json", mode="w") as f:
-        json.dump(paragraphAssembler.predicted, f)
+    singleFileSegmentbuilder.start()
+    singleFileSegmentbuilder.post_process()
+    singleFileSegmentbuilder.done_in_json_settings_file()
+    print(f"{singleFileSegmentbuilder.record} success")
+
+
+    with artifact.new_file(f"{singleFileSegmentbuilder.record}-is-hard-linebreak.json", mode="w") as f:
+        json.dump(singleFileSegmentbuilder.predicted, f)
 
     run.log_artifact(artifact)
 

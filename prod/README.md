@@ -15,31 +15,31 @@ pip install -r requirements.txt
 > |------ record_index_map.json.lock    锁控制文件（脚本内容涉及到修改本地文件并要求原子性）
 >
 
-## paragraph_assembler.py
+## single_file_segment_builder.py
 
 #### shell:
 
 ```shell
-python paragraph_assembler.py --key=sk-xxxxxx --test=false
+python single_file_segment_builder.py --key=sk-xxxxxx --test_mode=false
 ```
 
 #### options:
 
   --key  openai的apiKey（必填）
 
-  --test 是否测试此脚本 （true/false）default=false
+  --test_mode 是否测试此脚本 （true/false）default=false
 
 
-## test_paragraph_assembler.py 
+## detection_builder.py 
 
 #### illustrate:
 
-目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏
+测试并发调用生产脚本的脚本，目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏
 
 #### shell:
 
 ```shell
-python test_paragraph_assembler.py --concurrent_number=10
+python detection_builder.py --concurrent_number=10
 ```
 options:
 
