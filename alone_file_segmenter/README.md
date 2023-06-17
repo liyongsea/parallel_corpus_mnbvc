@@ -15,7 +15,7 @@ pip install -r requirements.txt
 > 
 > - 在 "Account settings" 页面上，你将看到一个名为 "API keys"（API密钥）的选项。复制它，如果没有则创建它。
 > 
-> - bash> wandb login --relogin
+> - ```bash> wandb login --relogin```
 >
 > - 在展示"wandb: Paste an API key from your profile and hit enter, or press ctrl+c to quit:"时，粘贴key，并按下Enter
 > 
