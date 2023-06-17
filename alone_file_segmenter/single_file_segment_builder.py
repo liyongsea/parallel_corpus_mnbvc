@@ -33,8 +33,8 @@ Path(CACHE_DIR).mkdir(exist_ok=True)
 
 class SingleFileSegmentbuilder:
 
-    def __init__(self, api_key=None):
-        self.api_key = api_key
+    def __init__(self):
+        # self.api_key = api_key
         self.dataset_row = self.get_dataset_row()
         logging.info(f"{self.record} start")
 
@@ -104,7 +104,7 @@ class SingleFileSegmentbuilder:
 
 
     def start(self):
-        detector = GPTBatchDetector('gpt-remote', CACHE_DIR, api_key=self.api_key)
+        detector = GPTBatchDetector('gpt-remote', CACHE_DIR)
         lines = self.dataset_row['en'].splitlines()
 
         predicted = detector.detect(lines, record_id=self.record)
@@ -129,9 +129,10 @@ if __name__ == "__main__":
     api_key = args.api_key
     test_mode = args.test_mode
 
+    os.environ["OPENAI_API_KEY"] = api_key
     # 测试
     if test_mode:
-        singleFileSegmentbuilder = SingleFileSegmentbuilder(api_key=api_key)
+        singleFileSegmentbuilder = SingleFileSegmentbuilder()
         record = singleFileSegmentbuilder.record
         print(f"{record} start")
         print(f"{args.api_key} api_key")
@@ -142,7 +143,7 @@ if __name__ == "__main__":
     if not api_key:
         raise ValueError("params --key must input")
 
-    singleFileSegmentbuilder = SingleFileSegmentbuilder(api_key=api_key)
+    singleFileSegmentbuilder = SingleFileSegmentbuilder()
     record = singleFileSegmentbuilder.record
 
     #  使wandn不会把openai key记录到wandb-metadata.json中

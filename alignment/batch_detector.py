@@ -8,14 +8,13 @@ import alignment.utils as utils
 
 
 class GPTBatchDetector(HardLineBreakDetector):
-    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False, api_key=None):
+    def __init__(self, name, cache_dir, token_limit=1400, use_proxy=False):
         super().__init__(name)
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.cache = {}
         self.token_limit = token_limit
         self.use_proxy = use_proxy
-        self.api_key = api_key
 
     def create_batches(self, lines: list[str]) -> list[list[str]]:
         """
@@ -71,7 +70,7 @@ class GPTBatchDetector(HardLineBreakDetector):
         """
         filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
         if not filename.exists():
-            output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy, api_key=self.api_key)
+            output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
             with filename.open('w') as f:
                 json.dump(output_text, f)
         else:

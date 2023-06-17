@@ -48,7 +48,7 @@ Additionally, please ensure that pagination and indexing information remains on 
     ]
 
 
-def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000, api_key = None):
+def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, retries: int = 1000):
     """
     Sends the provided text to the AI model and returns its response.
 
@@ -63,9 +63,8 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
     Returns:
         str: The AI model's response.
     """
-    if not api_key:
-        api_key = os.environ.get('OPENAI_API_KEY')
-
+    api_key = os.environ.get('OPENAI_API_KEY')
+    logging.info(f"api_key {api_key}")
     if not use_proxy:
         url = "https://api.openai.com/v1/chat/completions"
     else:
