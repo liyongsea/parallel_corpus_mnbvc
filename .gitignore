@@ -6,7 +6,9 @@ __pycache__/
 downloaded_websites
 download_pdf
 error_url.txt
-
+*.json.lock
+gpt_cache
+wandb
 # C extensions
 *.so
 
