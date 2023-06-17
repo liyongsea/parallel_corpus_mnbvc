@@ -21,7 +21,7 @@ def get_and_cache_dataset(path='bot-yaya/un_pdf_random10000_preprocessed', split
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--api_key', type=str, help='openai api key')
-    parser.add_argument('--file_index', type=str, help='直接给下标吧，1~10032')
+    parser.add_argument('--file_index', type=int, help='直接给下标吧，0~10031')
     # 我建议写死这个done_file，不管传参用默认值就行
     parser.add_argument('--done_file', type=str, default='done_file', help='一个目录，这个目录中会在脚本运行期间存一些文件，每个文件的文件名表示该标号的文件已经请求完毕，内容则为处理完毕后的is_hard_linebreak二值表。可以之后将这些表上传在线数据库或者是直接打包分发')
 
@@ -31,12 +31,15 @@ if __name__ == "__main__":
     done_directory: Path = LOCAL_WORK_DIR / args.done_file
     done_directory.mkdir(exist_ok=True)
 
-    single_file_data = get_and_cache_dataset().select((args.file_index, args.file_index + 1))[0]
+    single_file_data = get_and_cache_dataset().select((args.file_index,))[0]
     record = single_file_data['record']
 
     os.environ['OPENAI_API_KEY'] = args.api_key
 
-    detector = GPTBatchSequentialDetector('', cache_dir=(LOCAL_WORK_DIR / '').absolute(), use_proxy=True)
-    is_hard_linebreak: list[bool] = detector.detect(single_file_data)
+    detector_cache_dir = (LOCAL_WORK_DIR / 'batch_sequential_cache_dir') # 这里写死cache目录
+    detector_cache_dir.mkdir(exist_ok=True)
+
+    detector = GPTBatchSequentialDetector('', cache_dir=detector_cache_dir.absolute(), use_proxy=True)
+    is_hard_linebreak: list[bool] = detector.detect(single_file_data['en'].splitlines(), record_id=record)
     with (done_directory / f'{record}.list').open('w') as f:
         json.dump(is_hard_linebreak, f)
