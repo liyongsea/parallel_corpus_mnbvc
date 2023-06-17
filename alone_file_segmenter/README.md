@@ -3,6 +3,27 @@
 pip install -r requirements.txt
 ```
 
+# start 
+
+> 1.  Install the requirements
+> 
+> 2.  configure wandb
+>
+> - 打开 https://wandb.ai/ 网站，并登录到你的账户。
+> 
+> - 在页面的左上角，点击你的用户名，然后选择 "Account settings"（账户设置）选项。
+> 
+> - 在 "Account settings" 页面上，你将看到一个名为 "API keys"（API密钥）的选项。复制它，如果没有则创建它。
+> 
+> - bash> wandb login --relogin
+>
+> - 在展示"wandb: Paste an API key from your profile and hit enter, or press ctrl+c to quit:"时，粘贴key，并按下Enter
+> 
+> 3. bash> python ./alone_file_segmenter/single_file_segment_builder.py --key=sk-xxxxxx --test_mode=0 (如果并发，按照这个命令调用即可)
+
+
+
+
 
 ### 目录结构
 
