@@ -20,21 +20,21 @@ pip install -r requirements.txt
 #### shell:
 
 ```shell
-python single_file_segment_builder.py --key=sk-xxxxxx --test_mode=false
+python single_file_segment_builder.py --key=sk-xxxxxx --test_mode=0
 ```
 
 #### options:
 
   --key  openai的apiKey（必填）
 
-  --test_mode 是否测试此脚本 （true/false）default=false
+  --test_mode 是否测试此脚本 （0/false）default=0
 
 
 ## detection_builder.py 
 
 #### illustrate:
 
-测试并发调用生产脚本的脚本，目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏
+测试并发调用生产脚本的脚本，目前的脚本内容为并发是否可以拿到不同的record，并且是否造成'record_index_map.json'文件损坏，以及参数传递的apikey是否不同
 
 #### shell:
 
