@@ -16,7 +16,7 @@ if __name__ == '__main__':
     concurrent_number = args.concurrent_number
 
     scripts = [
-        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/paragraph_assembler.py', "--key='sk-xxxxxx", "--test=true"]
+        ['python', f'{os.path.dirname(os.path.abspath(__file__))}/paragraph_assembler.py', "--key='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", "--test=true"]
     ] * concurrent_number
 
 

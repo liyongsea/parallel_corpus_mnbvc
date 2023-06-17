@@ -3,8 +3,8 @@ import itertools
 from pathlib import Path
 import json
 
-from text_segmenter import HardLineBreakDetector
-import utils
+from alignment.text_segmenter import HardLineBreakDetector
+import alignment.utils as utils
 
 
 class GPTBatchDetector(HardLineBreakDetector):

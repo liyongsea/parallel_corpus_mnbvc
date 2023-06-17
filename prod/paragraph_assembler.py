@@ -5,16 +5,30 @@ import time
 import random
 import os
 from filelock import FileLock
+import wandb
+from pathlib import Path
+import sys
+
+# 防止用户在其他位置调用此脚本，从而找不到库的情况
+current_dir = os.path.dirname(os.path.abspath(__file__))
+alignment_path = os.path.join(current_dir, '..')
+sys.path.append(alignment_path)
+
+import alignment.utils as utils
+from alignment.batch_detector import GPTBatchDetector
 
 
+# 所有的缓存与相关文件同意放到标本脚本目录处
 RECORD_INDEX_MAP_FILE_LOACATION = f"{os.path.dirname(os.path.abspath(__file__))}/record_index_map.json"
 LOCK_FILE_LOCATION = f"{os.path.dirname(os.path.abspath(__file__))}/record_index_map.json.lock"
+CACHE_DIR = f"{os.path.dirname(os.path.abspath(__file__))}/gpt_cache"
+
+Path(CACHE_DIR).mkdir(exist_ok=True)
 
 class ParagraphAssembler:
 
     def __init__(self, test=False):
         self.test = test
-
         self.dataset_row = self.get_dataset_row()
         print(f"{self.record} start")
 
@@ -82,11 +96,20 @@ class ParagraphAssembler:
                 # 返回准备的数据集索引对应的数据
                 return dataset[prepare_dataset_index]
 
-    def start(self, key):
-        pass
+
+
+    def start(self):
+        detector = GPTBatchDetector('gpt-remote', CACHE_DIR)
+        lines = self.dataset_row['en'].splitlines()
+
+        predicted = detector.detect(lines, record_id=self.record)
+        self.predicted = predicted
+        return self.predicted
+
 
     def post_process(self):
         pass
+
 
     def batch_post_process(self):
         pass
@@ -103,4 +126,27 @@ if __name__ == "__main__":
     if not key:
         raise ValueError("params --key must input")
 
+    os.environ['OPENAI_API_KEY'] = key
+
     paragraphAssembler = ParagraphAssembler(args.test)
+
+    wandb.init(project="paragraph_assembler", name=f"GPTBatchDetector-{paragraphAssembler.record}")
+    run = wandb.run
+
+    artifact = wandb.Artifact(
+        name="paragraph_assembler",
+        type="dataset",
+        description="JSON files only containing predictions and record_id",
+        metadata=dict(record=paragraphAssembler.record))
+
+
+    paragraphAssembler.start()
+    paragraphAssembler.post_process()
+
+    with artifact.new_file(f"{paragraphAssembler.record}-is-hard-linebreak.json", mode="w") as f:
+        json.dump(paragraphAssembler.predicted, f)
+
+    run.log_artifact(artifact)
+
+    wandb.finish()
+    

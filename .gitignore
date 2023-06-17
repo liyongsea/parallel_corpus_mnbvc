@@ -9,7 +9,7 @@ error_url.txt
 cache_*
 wandb
 *.json.lock
-
+gpt_cache
 # C extensions
 *.so
 
