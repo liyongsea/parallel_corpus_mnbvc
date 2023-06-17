@@ -1,4 +1,5 @@
 import os
+import time
 import requests
 import logging
 import json
@@ -13,10 +14,11 @@ logging.basicConfig(filename='chatgptoutputs.log', level=logging.INFO, format='%
 class ExceededContextLength(Exception):
     pass
 
-
 class UnknownError(Exception):
     pass
 
+class ServerOverloadedError(Exception):
+    pass
 
 def create_chat_prompt(input_text: str): 
     """
@@ -31,11 +33,14 @@ def create_chat_prompt(input_text: str):
     return [
         {
             'role': 'user', 
-            'content': '''Your task is to detect soft line breaks in text exported from a PDF and replace them with spaces, while keeping hard line breaks as they are.
-            Please note that you should only determine which line breaks to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
-            Do not add addition \n.
-            Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary line breaks.
-            '''
+            'content': '''Your task is to solve a breakline elimination problem for text exported from PDF. The input may contain unexpected breaklines that split paragraphs, and you should join adjacent lines if they can form a meaningful paragraph and replace the breakline symbols as spaces. You should leave some lines that cannot form a paragraph as they are.
+
+Please note that you should only determine which breaklines to keep or replace and leave other text unchanged. Do not add any words or characters to the input text or provide additional information beyond the requested output.
+
+If there is no breakline symbol should be replaced, just echo the input text as it is.
+
+Additionally, please ensure that pagination and indexing information remains on its own line and does not get joined with adjacent paragraphs. Your response should maintain the original structure of the input while eliminating unnecessary breaklines.
+'''
         },
         {"role": "assistant", "content": 'Please provide your text.'},
         {"role": "user", "content": input_text},
@@ -81,11 +86,27 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 },
                 timeout = 60 * 5, verify=False
             )
+            logging.info(response.text)
+            try:
+                response_json = response.json()
+            except json.JSONDecodeError:
+                response_json = json.loads('{' + response.text) 
+
+            if 'error' in response_json:
+                error = response_json['error']
+                if 'code' in error and error['code'] == 'invalid_request_error':
+                    raise ExceededContextLength(error['message'])
+                elif error.get('type') == 'server_error' and 'overloaded' in error.get('message', ''):
+                    raise ServerOverloadedError(error['message']) # 这个错误是可以接住并且通过sleep and retry来解决的
+                else:
+                    raise UnknownError(error['message'])
+
             break
         # add requests.exceptions.SSLError
-        except requests.exceptions.RequestException as e:
+        except (requests.exceptions.RequestException, ServerOverloadedError) as e:
             if i < retries - 1:  # i is zero indexed
                 logging.error(f"Request failed with {str(e)}, retrying.")
+                time.sleep(2)
                 continue
             else:
                 logging.error(f"Request failed after {retries} retries.")
@@ -93,19 +114,8 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
         # wait 10 sec between each retry
         time.sleep(10)
 
-    logging.info(response.text)
 
-    try:
-        response_json = response.json()
-    except json.JSONDecodeError:
-        response_json = json.loads('{' + response.text) 
 
-    if 'error' in response_json:
-        error = response_json['error']
-        if 'code' in error and error['code'] == 'invalid_request_error':
-            raise ExceededContextLength(error['message'])
-        else:
-            raise UnknownError(error['message'])
 
     return response_json['choices'][0]['message']['content']
 

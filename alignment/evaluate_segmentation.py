@@ -10,6 +10,7 @@ import wandb
 
 from text_segmenter import *
 from batch_detector import GPTBatchDetector
+from batch_sequential_detector import GPTBatchSequentialDetector
 from rule_based_detector import RuleBasedDetector
 import utils
 
@@ -42,8 +43,16 @@ def main(detector_name, remove_long_file, detector_config):
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = _get_folder_from_config(detector_config)
         detector = GPTBatchDetector('gpt-remote', cache_dir, token_limit=token_limit)
+    elif detector_name == "GptBatchSequentialDetector":
+        print("using confing", detector_config)
+        token_limit = detector_config.get('token_limit', 1400)
+        cache_dir = 'batch_sequential_' + _get_folder_from_config(detector_config)
+        detector = GPTBatchSequentialDetector('gpt-remote', cache_dir, token_limit=token_limit, use_proxy=True)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
+
+    # Load the validation data from hf
+        
 
     # Create a new wandb Artifact
     run = wandb.run  # get the current run
@@ -55,7 +64,7 @@ def main(detector_name, remove_long_file, detector_config):
 
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph", split="train", ignore_verifications=True)
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph_19", split="train", ignore_verifications=True)
 
     if remove_long_file:
         FILE_WORD_TH = 20000
