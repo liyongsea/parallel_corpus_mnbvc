@@ -52,11 +52,26 @@ The module outputs the following information:
 
 ## batch_sequential_for_one_file.py
 
-example: `python batch_sequential_for_one_file.py --key=sk-xxxxxx --dataset_index=0~10031`
+example: `python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~10031`
 
 
 options:
 
     --api_key API_KEY     openai api key
-    --dataset_index DATASET_INDEX  数据集下标，0~10031
+    --dataset_index DATASET_INDEX  文件下标，请给一个0~10031的整数，每个整数对应一个文件的任务
 
+在正式运行之前，我们建议先单线程运行一次脚本跑0下标的任务：
+
+```
+python batch_sequential_for_one_file.py --key=[Your_Key] --file_index=0
+```
+
+这次运行是为了将hf数据集下载并且缓存到工作目录，避免之后的请求中反复访问hf。
+
+之后，我们可以令脚本并行地运行，我们建议，通过命令行新建进程的方式来执行这个脚本：
+
+```python
+os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~10031')
+```
+
+每个文件完成时，本地工作目录下的`batch_cache/done`里会存有已经处理完毕的文件标号及其分段结果。
