@@ -52,11 +52,12 @@ The module outputs the following information:
 
 ## batch_sequential_for_one_file.py
 
-example: ```python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~10031``
+example: `python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~10031`
 
 
 options:
-  --api_key API_KEY     openai api key
-  --file_index FILE_INDEX  数据集下标，1~10032
-  --done_file DONE_FILE 一个目录，这个目录中会在脚本运行期间存一些文件，每个文件的文件名表示该标号的文件已经请求完毕，内容则为处理完毕后的is_hard_linebreak二值表。可以之后将这些表上传在线数据库或者是直接打包分发
+
+    --api_key API_KEY     openai api key
+    --file_index FILE_INDEX  数据集下标，0~10031
+    --done_file DONE_FILE 一个目录，这个目录中会在脚本运行期间存一些文件，每个文件的文件名表示该标号的文件已经请求完毕，内容则为处理完毕后的is_hard_linebreak二值表。可以之后将这些表上传在线数据库或者是直接打包分发
 
