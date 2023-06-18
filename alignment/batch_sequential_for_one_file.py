@@ -8,7 +8,7 @@ from batch_sequential_detector import GPTBatchSequentialDetector
 import logging
 
 
-logging.basicConfig(filename='chatgptoutputs.log', level=logging.INFO, format='%(asctime)s %(message)s')
+logging.basicConfig(level=logging.INFO)
 
 LOCAL_WORK_DIR = Path(f'{os.path.dirname(os.path.abspath(__file__))}/batch_cache')
 LOCAL_WORK_DIR.mkdir(exist_ok=True)
@@ -39,9 +39,16 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    single_file_data = get_and_cache_dataset().select((args.file_index,))[0]
+    if args.file_index != 0 and not args.file_index:
+        raise ValueError("file_index must input")
+    
+    if not args.api_key:
+        raise ValueError("api_key must input")
+    
+    single_file_data = get_and_cache_dataset()[args.file_index]
     record = single_file_data['record']
 
+    
     os.environ['OPENAI_API_KEY'] = args.api_key
 
     detector = GPTBatchSequentialDetector('', cache_dir=DETECTOR_CACHE_DIR.absolute(), use_proxy=True)
