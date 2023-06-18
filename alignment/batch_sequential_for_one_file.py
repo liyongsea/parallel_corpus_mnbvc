@@ -36,20 +36,20 @@ def get_and_cache_dataset(path='bot-yaya/un_pdf_random10000_preprocessed', split
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--api_key', type=str, help='openai api key')
-    parser.add_argument('--file_index', type=int, help='直接给下标吧，0~10031')
+    parser.add_argument('--dataset_index', type=int, help='直接给下标吧，0~10031')
 
     args = parser.parse_args()
 
-    if args.file_index != 0 and not args.file_index:
-        raise ValueError("file_index must input")
+    if args.dataset_index != 0 and not args.dataset_index:
+        raise ValueError("dataset_index must input")
     
     if not args.api_key:
         raise ValueError("api_key must input")
     
-    single_file_data = get_and_cache_dataset()[args.file_index]
+    single_file_data = get_and_cache_dataset()[args.dataset_index]
     record = single_file_data['record']
 
-    
+
     os.environ['OPENAI_API_KEY'] = args.api_key
 
     detector = GPTBatchSequentialDetector('', cache_dir=DETECTOR_CACHE_DIR.absolute(), use_proxy=True)
