@@ -14,6 +14,7 @@ LOCAL_WORK_DIR = Path(f'{os.path.dirname(os.path.abspath(__file__))}/batch_cache
 LOCAL_WORK_DIR.mkdir(exist_ok=True)
 
 DATASET_CACHE_DIR = (LOCAL_WORK_DIR / 'dataset')
+DATASET_CACHE_DIR.mkdir(exist_ok=True)
 
 DETECTOR_CACHE_DIR = (LOCAL_WORK_DIR / 'batch_sequential_cache_dir') 
 DETECTOR_CACHE_DIR.mkdir(exist_ok=True)
