@@ -52,7 +52,7 @@ The module outputs the following information:
 
 ## batch_sequential_for_one_file.py
 
-example: `python batch_sequential_for_one_file.py --key=sk-xxxxxx --dataset_index=0~10031`
+example: `python batch_sequential_for_one_file.py --api_key=sk-xxxxxx --dataset_index=0~10031`
 
 
 options:
