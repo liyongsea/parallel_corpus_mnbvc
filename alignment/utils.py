@@ -58,7 +58,8 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
 
     Raises:
         ExceededContextLength: If the context length is exceeded.
-        UnknownError: If an unknown error occurs.
+        UnknownError: If an OpenAI side unknown error occurs.
+        Exception: If other unexpected error occurs.
 
     Returns:
         str: The AI model's response.
