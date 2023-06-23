@@ -133,7 +133,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         return align_map, input_hit_rate, output_hit_rate
 
     @staticmethod
-    def align_and_drop_bad_alignment(input_lines: list[str] | str, output_lines: list[str] | str) -> dict[int, Tuple[int, int]]:
+    def align_and_drop_bad_alignment(input_lines: list[str] | str, output_lines: list[str] | str, drop_last_paragraph=True) -> dict[int, Tuple[int, int]]:
         """
         这个函数是lcs_sequence_alignment的封装，用于丢掉其对齐得*不好*的段落。
         具体来说：
@@ -145,6 +145,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         Args:
             input_lines(str): 输入的一段话，需要保证不存在空行
             output_lines(str): chatgpt给对齐好的一段话，需要保证不存在空行
+            drop_last_paragraph(bool): 是否丢掉成出来的最后一个大段，如果当前batch已经跑完剩余的所有文本，则不需要丢掉最后一个大段
         
         Returns:
             align_map(dict[int, Tuple[int, int]]): 输出行号对应输入的行号，可以参见函数lcs_sequence_alignment的样例
@@ -175,7 +176,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         for p, i in enumerate(output_hit_rate):
             output_hit_rate[p] /= sum(map(len, output_lines[p].split()))
 
-        if len(align_map) > 1:
+        if len(align_map) > 1 and drop_last_paragraph:
             align_map.pop(max(align_map.keys())) # 干掉最后一个大段，避免不完全成段
 
         # 为了防止加段现象影响准确率，匹配率低于60%的output_line_id直接扔掉
@@ -187,7 +188,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         return align_map
 
     @staticmethod
-    def construct_segment_list_from_output_text(raw_text: str, output_text: str, use_identical_mapping_when_failure=False) -> list[Tuple[int, int]]:
+    def construct_segment_list_from_output_text(raw_text: str, output_text: str, use_identical_mapping_when_failure=False, drop_last_paragraph=True) -> list[Tuple[int, int]]:
         """
         从输出中构造段落区间表。
         use_identical_mapping_when_failure参数用于控制是否在output_text跟输入完全
@@ -211,7 +212,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
                 [[0, 0], [1, 2], [3, 4]]
 
         """
-        align_map = GPTBatchSequentialDetector.align_and_drop_bad_alignment(raw_text, GPTBatchSequentialDetector.clearup_output(output_text))
+        align_map = GPTBatchSequentialDetector.align_and_drop_bad_alignment(raw_text, GPTBatchSequentialDetector.clearup_output(output_text), drop_last_paragraph)
         if len(align_map) == 0:
             if use_identical_mapping_when_failure:
                 # 如果反复重问都没有办法解决，就令换行原样返回，这里处理方式是构造一个恒等映射表作为替代，如[[0, 0], [1, 1], [2, 2], [3, 3]]
@@ -219,7 +220,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         return list(align_map.values())
 
 
-    def align_gpt_linebreak_detection_request(self, raw_text: str, record_id: str, batch_index: int) -> list[Tuple[int, int]]:
+    def align_gpt_linebreak_detection_request(self, raw_text: str, record_id: str, batch_index: int, drop_last_paragraph=True) -> list[Tuple[int, int]]:
         """
         Sends a request to the GPT-3.5 API to detect hard line breaks in the given text, 
         and align the given text to its output text on the fly.
@@ -231,17 +232,17 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             raw_text (str): The raw text to be processed.
             record_id (int): The unique id of the record.
             batch_index (int): The index of the batch.
+            drop_last_paragraph (bool): set to False if the current batch is the last batch, so that the last paragraph will not be dropped.
 
         Returns:
-            dict[int, set[int]]: The aligned paragragh group, indicating a output line refers to which input lines.
+            list[Tuple[int, int]]: The aligned paragragh group intervals indicating a output line refers to which input lines.
         """
 
         filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
         if not filename.exists():
             for re_ask_time in range(self.re_ask_times):
-                output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
                 segment_list = GPTBatchSequentialDetector.construct_segment_list_from_output_text(raw_text, output_text,
-                    use_identical_mapping_when_failure=re_ask_time == self.re_ask_times - 1)
+                    re_ask_time == self.re_ask_times - 1, drop_last_paragraph)
                 if len(segment_list) == 0: # 记录一下GPT说的胡话以便日后分析
                     with Path('unexpected_outputs.jsonl').open('a', encoding='utf-8') as f:
                         json.dump({'time': str(datetime.now()), 'record': record_id, 'batch': batch_index, 'input': raw_text, 'output': output_text})
@@ -254,7 +255,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
             with filename.open('r') as f:
                 output_text = json.load(f)
                 segment_list = GPTBatchSequentialDetector.construct_segment_list_from_output_text(raw_text, output_text,
-                    use_identical_mapping_when_failure=True)
+                    True, drop_last_paragraph)
             
         return segment_list
 
@@ -308,7 +309,8 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
                 break
 
             # 获取成段区间表
-            segment_list = self.align_gpt_linebreak_detection_request(batch, record_id, batch_id)
+            segment_list = self.align_gpt_linebreak_detection_request(batch, record_id, batch_id,
+                drop_last_paragraph=next_lineid < len(lines)) # 如果是最后一批，就不要丢掉最后一个大段
 
             for l_border, r_border in segment_list:
                 detections[new_batch_begin_lineid + l_border:new_batch_begin_lineid + r_border] = [False] * (r_border - l_border) # 每个段落的区间赋值为False
