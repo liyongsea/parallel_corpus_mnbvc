@@ -23,7 +23,7 @@ DONE_DIR = (LOCAL_WORK_DIR / 'done')
 DONE_DIR.mkdir(exist_ok=True)
 
 
-def get_and_cache_dataset(path='bot-yaya/un_pdf_random10000_preprocessed', split='train'):
+def get_and_cache_dataset(path='bot-yaya/un_pdf_random10032_preprocessed', split='train'):
     """把hf的东西cache到工作目录，防止dns阻断导致不能验证本地缓存"""
     try:
         dataset = datasets.load_from_disk(DATASET_CACHE_DIR)
