@@ -567,6 +567,7 @@ def preprocess_and_upload_dataset():
     DIGITS_PATTERN = re.compile('^\d+$')
     MATCHER_RATIO = 0.72
     FILTER_LOG = 'preprocessed_log.jsonl'
+    Path(PREPROCESS_DIR).mkdir(exist_ok=True)
 
     def make_filter_log(filtered: str, record: str | int, lang: str, page: str | int, reason: str):
         """将过滤的内容写到log里方便分析"""
@@ -746,7 +747,7 @@ def preprocess_and_upload_dataset():
     def preprocess(row):
         drop_pagination_header_and_footer(row)
         for lang in LANGS:
-            row[lang] = remove_duplicate_breakline(row[lang].split(PAGINATION_TOKEN))
+            row[lang] = remove_duplicate_breakline(row[lang].replace('\ufffe', '-').split(PAGINATION_TOKEN))
         return row
 
     use_proxy()
