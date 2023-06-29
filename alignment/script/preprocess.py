@@ -174,7 +174,7 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
         row (DatasetDict): 清洗后按原格式组装的row
     """
     all_lang_token_occurrences = count_occurrences_across_all_langs(row)
-    all_lang_page_num_sum = map(lambda x: row[x].count(PAGINATION_TOKEN) + 1, LANGS) # 所有语言版本的文件的页数总和
+    all_lang_page_num_sum = sum(map(lambda x: row[x].count(PAGINATION_TOKEN) + 1, LANGS)) # 所有语言版本的文件的页数总和
     record = row['record']
 
     for lang in LANGS:
