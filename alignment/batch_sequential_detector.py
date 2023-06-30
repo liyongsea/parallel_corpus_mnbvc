@@ -241,6 +241,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         filename = self.cache_dir / f'record_{record_id}_processed_batch_{batch_index}.json'
         if not filename.exists():
             for re_ask_time in range(self.re_ask_times):
+                output_text = utils.gpt_detect_hard_line_breaks(raw_text, use_proxy=self.use_proxy)
                 segment_list = GPTBatchSequentialDetector.construct_segment_list_from_output_text(raw_text, output_text,
                     re_ask_time == self.re_ask_times - 1, drop_last_paragraph)
                 if len(segment_list) == 0: # 记录一下GPT说的胡话以便日后分析

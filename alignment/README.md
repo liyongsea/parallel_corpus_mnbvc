@@ -58,7 +58,7 @@ example: `python batch_sequential_for_one_file.py --api_key=sk-xxxxxx --dataset_
 options:
 
     --api_key API_KEY     openai api key
-    --dataset_index DATASET_INDEX  文件下标，请给一个0~10031的整数，每个整数对应一个文件的任务
+    --dataset_index DATASET_INDEX  文件下标，请给一个0~9000的整数，每个整数对应一个文件的任务
 
 在正式运行之前，我们建议先单线程运行一次脚本跑0下标的任务：
 
@@ -71,7 +71,7 @@ python batch_sequential_for_one_file.py --key=[Your_Key] --file_index=0
 之后，我们可以令脚本并行地运行，我们建议，通过命令行新建进程的方式来执行这个脚本：
 
 ```python
-os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~10031')
+os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~9000')
 ```
 
 每个文件完成时，本地工作目录下的`batch_cache/done`里会存有已经处理完毕的文件标号及其分段结果。
