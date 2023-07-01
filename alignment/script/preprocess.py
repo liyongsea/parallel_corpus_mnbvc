@@ -3,7 +3,6 @@ import json
 from pathlib import Path
 import re
 import itertools
-import os
 
 from collections import Counter
 
@@ -19,9 +18,11 @@ PREPROCESS_DIR = Path('preprocessed_dump')
 
 PREPROCESS_DIR.mkdir(exist_ok=True)
 
+PRF = 'raw' # 存档前缀，用于比对预处理前文本和预处理后文本用
+
 def make_filter_log(filtered: str, record: str | int, lang: str, page: str | int, reason: str):
     """将过滤的内容写到log里方便分析"""
-    with open(FILTER_LOG, 'a', encoding='utf-8') as f:
+    with open(FILTER_LOG, 'a', encoding='utf-8', buffering=1 << 20) as f:
         json.dump({'record': str(record), 'lang': lang, 'page': str(page), 'reason': reason, 'filtered': filtered}, f)
         f.write('\n')
 
@@ -36,7 +37,7 @@ def dump_row(row: datasets.DatasetDict):
     方便在上传之前最后人工确认一下预处理结果
     """
     for lang in LANGS:
-        with (PREPROCESS_DIR / f'dbg_{lang}.txt').open('a', encoding='utf-8') as f:
+        with (PREPROCESS_DIR / f'{PRF}_{lang}.txt').open('a', encoding='utf-8') as f:
             f.write(make_banner(row['record']) + row[lang])
 
 
@@ -131,23 +132,23 @@ def estimate_pagination_offset(pages: list[str]) -> list[set[str]]:
     pagination_offset = None
     page_token_slots = [set() for _ in pages] # 每页是list中的一个元素，set里装本页里所有页眉部分的token
     for slot, page in zip(page_token_slots, pages):
-        for line in page[:HEADER_SCAN_LIMIT]:
+        for line in page[:HEADER_SCAN_LIMIT].splitlines():
             for token in line.split():
-                if re.match(DIGITS_PATTERN, token): # .isdigit()后int()有可能会抛异常，故用正则
-                    slot.add(int(token))
+                for i in re.findall(r'\d+', token):
+                    slot.add(i)
     
     max_hits = 0 # 记最大页码命中数
     for offset in range(-9, 3): # 请谨慎修改这个偏移值的估计范围
         hits = 0
         for pageid in range(len(pages)):
-            if pageid + offset in page_token_slots[pageid]:
+            if str(pageid + offset) in page_token_slots[pageid]:
                 hits += 1
         if hits > max_hits:
             max_hits = hits
             pagination_offset = offset
     # 如果观察日志发现页码去除得过于激进，可以取消注释下面两行来规避一些并不是页码的case
-    # if maxcombo < len(pages) // 2:
-    #     pagination_offset = None
+    if max_hits < len(pages) // 2:
+        pagination_offset = None
     return pagination_offset
 
 def remove_duplicate_breakline(pages: list[str]):
@@ -166,8 +167,6 @@ def chk_en_rate(row):
 def drop_pagination_header_and_footer(row: datasets.DatasetDict):
     """语种无关过滤页眉（包括页码），不依赖任何正则，仅依靠自身和其它语种中出现的文本块频度统计实现
 
-    ！！！目前还没改完！！！
-
     Args：
         row (DatasetDict): datasets map进来的行，内含一篇文章的六个语种版本，每页用\n----\n隔开
     Returns:
@@ -182,8 +181,6 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
         token_occurrences = count_occurrences_across_single_lang(pages)
         line_occurrences = count_line_digest_occurrences_across_single_lang(pages)
         pagination_offset = estimate_pagination_offset(pages)
-
-
 
         def is_freq(freq: int):
             """频次高于本表达式规定的，我们认为属于噪声信息"""
@@ -227,7 +224,8 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
                     nonlocal reach_end_of_noises
                     if reach_end_of_noises:
                         return True
-                    if pagination_offset is not None and re.match(DIGITS_PATTERN, token) and int(token) == pageid + pagination_offset: # 过滤页码
+                    if pagination_offset is not None and (re.match(DIGITS_PATTERN, token) or
+                             re.match(r'^\d+/\d+', token)) and str(pageid + pagination_offset) in re.findall(r'\d+', token): # 过滤页码
                         make_filter_log(token, record, lang, pageid, f'likely page number')
                         return False
                     if all_lang_token_occurrences[token] > all_lang_page_num_sum // 2:
@@ -257,10 +255,24 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
         row[lang] = '\n'.join(remove_duplicate_breakline(pages))
     return row
 
+def use_proxy():
+    """全局用socks5代理"""
+    import socks
+    import socket
+    socks.set_default_proxy(socks.SOCKS5, '127.0.0.1', 7890)
+    socket.socket = socks.socksocket
+
 if __name__ == "__main__":
-    dataset = datasets.load_dataset("ranWang/un_pdf_text_data_test", split='randomTest10000')
-    dataset = dataset.filter(chk_en_rate).map(drop_pagination_header_and_footer, num_proc=8)
+    use_proxy()
+    dataset = datasets.load_dataset("ranWang/un_pdf_text_data_test", split='new_randomTest10000')
     dataset.map(dump_row)
+    dataset = dataset.filter(chk_en_rate).map(drop_pagination_header_and_footer, num_proc=8)
+    PRF = 'preprocessed'
+    input('Press any key to dump preprocessed files...')
+    dataset.map(dump_row)
+    dumped_dataset_path = Path('preprocessed_dataset/')
+    dumped_dataset_path.mkdir(exist_ok=True)
+    dataset.save_to_disk(dumped_dataset_path.absolute())
     print(len(dataset))
     input('Press any key to continue push to hub...')
-    dataset.push_to_hub('bot-yaya/un_pdf_random10032_preprocessed2', token=os.environ.get('HF_TOKEN') or input('Your hf token:'))
+    # dataset.push_to_hub('bot-yaya/un_pdf_random10032_preprocessed2', token=os.environ.get('HF_TOKEN') or input('Your hf token:'))
