@@ -36,7 +36,7 @@ def get_and_cache_dataset(path='bot-yaya/un_pdf_random9208_preprocessed_2', spli
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--api_key', type=str, help='openai api key')
-    parser.add_argument('--dataset_index', type=int, help='直接给下标吧，0~9000')
+    parser.add_argument('--dataset_index', type=int, help='直接给下标吧，0~9207')
 
     args = parser.parse_args()
 
