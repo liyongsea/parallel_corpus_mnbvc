@@ -156,11 +156,15 @@ def remove_duplicate_breakline(pages: list[str]):
     return filter(len, list(
         line.strip() for line in itertools.chain(*[page.splitlines() for page in pages])))
 
-def chk_en_rate(row):
-    """检查一个文件的英文含量，如果一份英文文件里Unicode乱码而不是英文文字居多，我们应该放弃处理这些文件"""
-    inputs = row['en']
+def short_file_and_garbled_text_filter(row):
+    """
+    过滤掉英文文章中，仅有1~2页的短文件，以及非英文字符比例过高的（很可能是导出错误出现乱码的）文件
+    """
+    inputs: str = row['en']
     en_rate = len(re.findall(r'[a-zA-Z]', inputs)) / len(inputs) if len(inputs) else 0
     if en_rate < 0.2:
+        return False
+    if inputs.count(PAGINATION_TOKEN) <= 1: # 1~2页的短文件有很大比例是第一页的噪声，这样的文件拿去对齐意义不大
         return False
     return True
 
@@ -266,10 +270,10 @@ if __name__ == "__main__":
     use_proxy()
     dataset = datasets.load_dataset("ranWang/un_pdf_text_data_test", split='new_randomTest10000')
     dataset.map(partial(dump_row, prefix='raw'))
-    dataset = dataset.filter(chk_en_rate).map(drop_pagination_header_and_footer, num_proc=8)
-    input('Press any key to dump preprocessed files...')
+    dataset = dataset.filter(short_file_and_garbled_text_filter).map(drop_pagination_header_and_footer, num_proc=8)
+    # input('Press any key to dump preprocessed files...')
     dataset.map(partial(dump_row, prefix='preprocessed'))
     dataset.save_to_disk(PREPROCESS_DIR)
     print(len(dataset))
-    input('Press any key to continue push to hub...')
+    # input('Press any key to continue push to hub...')
     dataset.push_to_hub('bot-yaya/un_pdf_random9208_preprocessed_2', token=os.environ.get('HF_TOKEN') or input('Your hf token:'))
