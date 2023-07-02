@@ -97,10 +97,16 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 elif error.get('type') == 'server_error' and 'overloaded' in error.get('message', ''):
                     raise ServerOverloadedError(error['message']) # 这个错误是可以接住并且通过sleep and retry来解决的
                 elif error.get('type') == 'billing_not_active': # Token过期 直接挂掉
-                    logging.fatal(f"OpenAI API Token not active: {error}")
+                    logging.fatal(f"OpenAI API Key not active: {error}")
+                    print(f"OpenAI API Key not active: {error}")
                     exit(1)
                 elif error.get('type') == 'invalid_request_error': # API Key无效或者已撤回可能引起这个错误
                     logging.fatal(f"Invalid request (API Key maybe Invalid): {error}")
+                    print(f"Invalid request (API Key maybe Invalid): {error}")
+                    exit(1)
+                elif error.get('type') == 'insufficient_quota': # API Key配额用完
+                    logging.fatal(f"OpenAI API Key quota exceeded: {error}")
+                    print(f"OpenAI API Key quota exceeded: {error}")
                     exit(1)
                 else:
                     raise UnknownError(error['message'])
