@@ -96,6 +96,9 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                     raise ExceededContextLength(error['message'])
                 elif error.get('type') == 'server_error' and 'overloaded' in error.get('message', ''):
                     raise ServerOverloadedError(error['message']) # 这个错误是可以接住并且通过sleep and retry来解决的
+                elif error.get('type') == 'billing_not_active': # Token过期 直接挂掉
+                    logging.fatal(f"Invalid OpenAI API Token: {error}")
+                    exit(1)
                 else:
                     raise UnknownError(error['message'])
 
