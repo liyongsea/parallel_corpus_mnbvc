@@ -1,8 +1,10 @@
 from difflib import SequenceMatcher
+from functools import partial
 import json
 from pathlib import Path
 import re
 import itertools
+import os
 
 from collections import Counter
 
@@ -18,8 +20,6 @@ PREPROCESS_DIR = Path('preprocessed_dump')
 
 PREPROCESS_DIR.mkdir(exist_ok=True)
 
-PRF = 'raw' # 存档前缀，用于比对预处理前文本和预处理后文本用
-
 def make_filter_log(filtered: str, record: str | int, lang: str, page: str | int, reason: str):
     """将过滤的内容写到log里方便分析"""
     with open(FILTER_LOG, 'a', encoding='utf-8', buffering=1 << 20) as f:
@@ -31,13 +31,13 @@ def make_banner(record: str) -> str:
     divider = '=' * 10 + '\n'
     return  divider + record + '\n' + divider
 
-def dump_row(row: datasets.DatasetDict):
+def dump_row(row: datasets.DatasetDict, prefix: str):
     """
     调试用，输出中间结果到文件
     方便在上传之前最后人工确认一下预处理结果
     """
     for lang in LANGS:
-        with (PREPROCESS_DIR / f'{PRF}_{lang}.txt').open('a', encoding='utf-8') as f:
+        with (PREPROCESS_DIR / f'{prefix}_{lang}.txt').open('a', encoding='utf-8') as f:
             f.write(make_banner(row['record']) + row[lang])
 
 
@@ -265,14 +265,11 @@ def use_proxy():
 if __name__ == "__main__":
     use_proxy()
     dataset = datasets.load_dataset("ranWang/un_pdf_text_data_test", split='new_randomTest10000')
-    dataset.map(dump_row)
+    dataset.map(partial(dump_row, prefix='raw'))
     dataset = dataset.filter(chk_en_rate).map(drop_pagination_header_and_footer, num_proc=8)
-    PRF = 'preprocessed'
     input('Press any key to dump preprocessed files...')
-    dataset.map(dump_row)
-    dumped_dataset_path = Path('preprocessed_dataset/')
-    dumped_dataset_path.mkdir(exist_ok=True)
-    dataset.save_to_disk(dumped_dataset_path.absolute())
+    dataset.map(partial(dump_row, prefix='preprocessed'))
+    dataset.save_to_disk(PREPROCESS_DIR)
     print(len(dataset))
     input('Press any key to continue push to hub...')
-    # dataset.push_to_hub('bot-yaya/un_pdf_random10032_preprocessed2', token=os.environ.get('HF_TOKEN') or input('Your hf token:'))
+    dataset.push_to_hub('bot-yaya/un_pdf_random9208_preprocessed_2', token=os.environ.get('HF_TOKEN') or input('Your hf token:'))
