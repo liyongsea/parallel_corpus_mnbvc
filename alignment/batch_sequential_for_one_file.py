@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
     os.environ['OPENAI_API_KEY'] = args.api_key
 
-    detector = GPTBatchSequentialDetector('', cache_dir=DETECTOR_CACHE_DIR.absolute(), use_proxy=False) # 如果需要用反代这里use_proxy改True
+    detector = GPTBatchSequentialDetector('', cache_dir=DETECTOR_CACHE_DIR.absolute(), use_proxy=False, ignore_leading_noise_lines=True) # 如果需要用反代这里use_proxy改True
     is_hard_linebreak: list[bool] = detector.detect(single_file_data['en'].splitlines(), record_id=record)
 
     with (DONE_DIR / f'{record}.list').open('w') as f:

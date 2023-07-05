@@ -6,6 +6,7 @@ import itertools
 from pathlib import Path
 import json
 import re
+from difflib import SequenceMatcher
 
 import tiktoken
 import pylcs
@@ -16,7 +17,9 @@ import utils
 LCSTokenInfo = namedtuple('LCSTokenInfo', ('token', 'length', 'source_line_id'))
 
 class GPTBatchSequentialDetector(HardLineBreakDetector):
-    def __init__(self, name, cache_dir, token_limit=500, use_proxy=False, re_ask_times=3):
+    LEADING_NOISE_SCAN_LINE_LIMIT = 12 # 
+
+    def __init__(self, name, cache_dir, token_limit=500, use_proxy=False, re_ask_times=3, ignore_leading_noise_lines=True):
         super().__init__(name)
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -25,6 +28,7 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         self.use_proxy = use_proxy
         self.encoder = tiktoken.encoding_for_model("gpt-3.5-turbo")
         self.re_ask_times = re_ask_times
+        self.ignore_leading = ignore_leading_noise_lines
 
     @staticmethod
     def clearup_output(raw_output_from_chatgpt: str) -> list[str]:
@@ -284,6 +288,74 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
         if buffer:
             return buffer
 
+    def ignore_first_page_leading_noises(self, lines: list[str]) -> int:
+        """
+        忽略掉首行的一些疑似首页噪声的东西，避免第一个batch成段效果不好。
+        
+        这里给一个样本：
+        United Nations E/2004/93
+        Economic and Social Council Distr.: General
+        14 July 2004
+        Original: English
+        04-42475 (E) 140704
+        *0442475*
+        Substantive session of 2004
+        New York, 28 June-23 July 2004
+        Agenda item 13 (a)
+
+        输入：lines: list[str]，detect中传入的lines，不再赘述
+        输出：int，表示一个行下标，我建议从此行开始往后构造第一个batch
+        """
+        for lineid, leading_line in enumerate(lines[:self.LEADING_NOISE_SCAN_LINE_LIMIT]):
+            if leading_line.lower().find("agenda") != -1: # 
+                return lineid + 1 # Agenda item xx是一个比较好的leading noise和正文的分界线，这里判断前12行有没有
+        
+        # 以下一系列闭包方法为判断一行是否为噪声行的规则
+        def match_static_pattern(line: str) -> bool:
+            """匹配静态字符串规则"""
+            for static_pattern in [
+                    'Economic and Social Council Distr.:',
+                    'United Nations',
+                ]:
+                if static_pattern in line or line in static_pattern: # 包含关系，认为满足规则
+                    return True
+                matcher = SequenceMatcher(a=static_pattern, b=leading_line, autojunk=False)
+                if matcher.ratio() > 0.7: # 相似关系，认为满足规则
+                    return True
+            return False
+
+        def match_re_pattern(line: str) -> bool:
+            """匹配正则规则"""
+            for re_pattern in [
+                    re.compile(r'\d{1,2} [a-zA-Z]+ \d{4}'), # 日期
+                    re.compile(r'Original: [a-zA-Z]+') # 源语言
+                ]:
+                if re.search(re_pattern, line):
+                    return True
+            return False
+        
+        def low_en_proportion(line: str) -> bool:
+            """英语字母占比规则"""
+            return len(line) * 0.5 > len(re.findall(r'[a-zA-Z]', line)) # 英语字母占比小于整行长度一半
+
+        def short_line(line: str) -> bool:
+            """行长度规则"""
+            return len(line) < 40
+
+        # 我们连续的从上至下一行行匹配已有的规则，一旦有一行不满足规则，则后面的行我们认为已经达到了正文行，直接返回
+        for lineid, leading_line in enumerate(lines[:self.LEADING_NOISE_SCAN_LINE_LIMIT]):
+            if not (
+                    match_static_pattern(leading_line) or
+                    match_re_pattern(leading_line) or
+                    low_en_proportion(leading_line) or
+                    short_line(leading_line)
+                ):
+                    return lineid
+
+        return self.LEADING_NOISE_SCAN_LINE_LIMIT # 如果前12行都疑似噪声行，则返回第12行
+
+
+
     def detect(self, lines: list[str], record_id: str, **kwargs) -> list[bool]:
         """
         Applies the GPT-3.5 detection technique to the given lines.
@@ -301,6 +373,10 @@ class GPTBatchSequentialDetector(HardLineBreakDetector):
 
         new_batch_begin_lineid = 0
         batch_id = 0
+
+        if self.ignore_leading:
+            new_batch_begin_lineid = self.ignore_first_page_leading_noises(lines)
+            print(f'[{record_id}]first batch begin at:{new_batch_begin_lineid}')
 
         while new_batch_begin_lineid < len(lines):
             batch = self.generate_batch(lines, new_batch_begin_lineid) # 利用已有的结果生成input_batch
