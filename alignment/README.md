@@ -52,7 +52,7 @@ The module outputs the following information:
 
 ## batch_sequential_for_one_file.py
 
-example: `python batch_sequential_for_one_file.py --api_key=sk-xxxxxx --dataset_index=0~10031`
+example: `python batch_sequential_for_one_file.py --api_key=sk-xxxxxx --dataset_index=0~15293`
 
 
 options:
@@ -71,7 +71,7 @@ python batch_sequential_for_one_file.py --key=[Your_Key] --file_index=0
 之后，我们可以令脚本并行地运行，我们建议，通过命令行新建进程的方式来执行这个脚本：
 
 ```python
-os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~9000')
+os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --file_index=0~15293')
 ```
 
 每个文件完成时，本地工作目录下的`batch_cache/done`里会存有已经处理完毕的文件标号及其分段结果。

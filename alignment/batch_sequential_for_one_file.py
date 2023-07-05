@@ -2,10 +2,9 @@ import argparse
 import os
 import json
 from pathlib import Path
-
+import logging
 import datasets
 from batch_sequential_detector import GPTBatchSequentialDetector
-import logging
 
 
 logging.basicConfig(level=logging.INFO)
@@ -13,17 +12,17 @@ logging.basicConfig(level=logging.INFO)
 LOCAL_WORK_DIR = Path(f'{os.path.dirname(os.path.abspath(__file__))}/batch_cache')
 LOCAL_WORK_DIR.mkdir(exist_ok=True)
 
-DATASET_CACHE_DIR = (LOCAL_WORK_DIR / 'dataset')
+DATASET_CACHE_DIR = LOCAL_WORK_DIR / 'dataset'
 DATASET_CACHE_DIR.mkdir(exist_ok=True)
 
-DETECTOR_CACHE_DIR = (LOCAL_WORK_DIR / 'batch_sequential_cache_dir') 
+DETECTOR_CACHE_DIR = LOCAL_WORK_DIR / 'batch_sequential_cache_dir'
 DETECTOR_CACHE_DIR.mkdir(exist_ok=True)
 
-DONE_DIR = (LOCAL_WORK_DIR / 'done') 
+DONE_DIR = LOCAL_WORK_DIR / 'done'
 DONE_DIR.mkdir(exist_ok=True)
 
 
-def get_and_cache_dataset(path='bot-yaya/un_pdf_random9208_preprocessed_2', split='train'):
+def get_and_cache_dataset(path='ranWang/un_pdf_random_preprocessed', split='train'):
     """把hf的东西cache到工作目录，防止dns阻断导致不能验证本地缓存"""
     try:
         dataset = datasets.load_from_disk(DATASET_CACHE_DIR)
@@ -36,7 +35,7 @@ def get_and_cache_dataset(path='bot-yaya/un_pdf_random9208_preprocessed_2', spli
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--api_key', type=str, help='openai api key')
-    parser.add_argument('--dataset_index', type=int, help='直接给下标吧，0~9207')
+    parser.add_argument('--dataset_index', type=int, help='直接给下标吧，0~15293')
 
     args = parser.parse_args()
 
