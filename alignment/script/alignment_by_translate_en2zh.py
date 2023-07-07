@@ -158,6 +158,7 @@ def translate(en: str | list[str]) -> list[str]:
     translated = []
     for paragraph in en:
         word_buffer = []
+        translated.append('')
         for word in paragraph.split():
             word_buffer.append(word)
             # 这里有两个根据经验调的magic number，为了避免翻译pipeline的token count超过512报错
