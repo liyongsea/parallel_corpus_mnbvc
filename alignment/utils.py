@@ -58,7 +58,8 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
 
     Raises:
         ExceededContextLength: If the context length is exceeded.
-        UnknownError: If an unknown error occurs.
+        UnknownError: If an OpenAI side unknown error occurs.
+        Exception: If other unexpected error occurs.
 
     Returns:
         str: The AI model's response.
@@ -84,18 +85,29 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
                 },
                 timeout = 60 * 5, verify=False
             )
-            logging.info(response.text)
+            logging.debug(response.text)
             try:
                 response_json = response.json()
             except json.JSONDecodeError:
                 response_json = json.loads('{' + response.text) 
-
             if 'error' in response_json:
                 error = response_json['error']
                 if 'code' in error and error['code'] == 'invalid_request_error':
                     raise ExceededContextLength(error['message'])
                 elif error.get('type') == 'server_error' and 'overloaded' in error.get('message', ''):
                     raise ServerOverloadedError(error['message']) # 这个错误是可以接住并且通过sleep and retry来解决的
+                elif error.get('type') == 'billing_not_active': # Token过期 直接挂掉
+                    logging.fatal(f"OpenAI API Key not active: {error}")
+                    print(f"OpenAI API Key not active: {error}")
+                    exit(1)
+                elif error.get('type') == 'invalid_request_error': # API Key无效或者已撤回可能引起这个错误
+                    logging.fatal(f"Invalid request (API Key maybe Invalid): {error}")
+                    print(f"Invalid request (API Key maybe Invalid): {error}")
+                    exit(1)
+                elif error.get('type') == 'insufficient_quota': # API Key配额用完
+                    logging.fatal(f"OpenAI API Key quota exceeded: {error}")
+                    print(f"OpenAI API Key quota exceeded: {error}")
+                    exit(1)
                 else:
                     raise UnknownError(error['message'])
 
@@ -109,6 +121,23 @@ def gpt_detect_hard_line_breaks(line_break_text: str, use_proxy: bool = False, r
             else:
                 logging.error(f"Request failed after {retries} retries.")
                 raise e
+        except UnknownError as e: # sample: The server had an error while processing your request. Sorry about that!
+            if i < retries - 1:  # i is zero indexed
+                logging.error(f"OpenAI side unknown error occurred: {str(e)}, retrying.")
+                time.sleep(2)
+                continue
+            else:
+                logging.error(f"OpenAI side unknown error occurred after {retries} retries: {str(e)}.")
+                raise e
+        except Exception as e:
+            if i < retries - 1:  # in case of other unknown exception that prevent running
+                logging.error(f"Unexpected error occurred: {str(e)}, retrying.")
+                time.sleep(2)
+                continue
+            else:
+                logging.error(f"Unexpected error occurred after {retries} retries: {str(e)}.")
+                raise e
+
         # wait 10 sec between each retry
         time.sleep(10)
 
@@ -146,7 +175,7 @@ def find_closest_within_margin(target, candidates, margin):
         return None, None
 
 
-def index_near_match(indice_true, indice_pred, margin):
+def index_near_match(indice_true, indice_pred, margin=5):
     """
     This function identifies and matches indices in 'indice_pred' that are closest to indices in 'indice_true', 
     within a specified margin. The offset is corrected each time an index is matched. The function returns two 

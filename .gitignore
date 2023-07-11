@@ -7,6 +7,11 @@ downloaded_websites
 download_pdf
 error_url.txt
 
+cache_*
+wandb
+*.json.lock
+gpt_cache
+batch_cache
 # C extensions
 *.so
 

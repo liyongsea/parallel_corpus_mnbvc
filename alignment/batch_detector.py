@@ -3,8 +3,8 @@ import itertools
 from pathlib import Path
 import json
 
-from text_segmenter import HardLineBreakDetector
-import utils
+from alignment.text_segmenter import HardLineBreakDetector
+import alignment.utils as utils
 
 
 class GPTBatchDetector(HardLineBreakDetector):
@@ -36,7 +36,6 @@ class GPTBatchDetector(HardLineBreakDetector):
             words = line.split()
             # Estimate the token count for the current line
             line_token_count = len(words) * (100 / 75)
-
             # Check if adding this line would exceed the token limit
             if token_count + line_token_count > self.token_limit:
                 # If so, finish the current batch and start a new one
