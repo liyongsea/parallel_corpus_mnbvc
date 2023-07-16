@@ -11,6 +11,7 @@ import wandb
 from text_segmenter import *
 from batch_detector import GPTBatchDetector
 from batch_sequential_detector import GPTBatchSequentialDetector
+from logistic_regression_detector import LogisticRegressionDetector
 from rule_based_detector import RuleBasedDetector
 import utils
 
@@ -48,6 +49,8 @@ def main(detector_name, remove_long_file, detector_config):
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = 'batch_sequential_' + _get_folder_from_config(detector_config)
         detector = GPTBatchSequentialDetector('gpt-remote', cache_dir, token_limit=token_limit, use_proxy=True)
+    elif detector_name == "LogisticRegressionDetector":
+        detector = LogisticRegressionDetector(detector_name)
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -151,7 +154,7 @@ def main(detector_name, remove_long_file, detector_config):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Evaluate a hard line break detector.')
-    parser.add_argument('detector_name', type=str, help='The name of the detector to evaluate (DetectorA or PunctuationAndCapitalLetterDetector)')
+    parser.add_argument('--detector_name', type=str, help='The name of the detector to evaluate (DetectorA or PunctuationAndCapitalLetterDetector)', default="LogisticRegressionDetector")
     parser.add_argument('--remove_long_file', type=bool, default=False, help='Remove long file, typically 515053')
     parser.add_argument('--detector_config', type=str, default=None, help='json file for detector config')
     parser.add_argument('--run_name', type=str, default=None, help='run name for wandb')

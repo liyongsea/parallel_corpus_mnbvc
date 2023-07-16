@@ -24,13 +24,14 @@ python evaluate_segmentation.py GptBatchDetector --remove_long_file True --detec
 ## Performance Results
 The current performance results in terms of accuracy for the available detectors are as follows:
 
-| Detector Name                        | Accuracy |
-|--------------------------------------|----------|
-| PunctuationAndCapitalLetterDetector  | 0.808260 |
-| RuleBasedDetector                    | 0.866769 |
-| GptOfflineDetector_t1400             | 0.941427 |
-| GptBatchDetector_t256                | 0.96?    |
-| GptBatchSequentialDetector_t500      | 0.963088 |
+| Detector Name                         | Accuracy |
+|---------------------------------------|----------|
+| PunctuationAndCapitalLetterDetector   | 0.808260 |
+| RuleBasedDetector                     | 0.866769 |
+| LogisticRegressionDetector_train10file| 0.858438 |
+| GptOfflineDetector_t1400              | 0.941427 |
+| GptBatchDetector_t256                 | 0.96?    |
+| GptBatchSequentialDetector_t500       | 0.963088 |
 
 
 These accuracy values represent the overall correct predictions made by each detector. Higher accuracy values indicate better performance in distinguishing between softline and non-softline instances.
