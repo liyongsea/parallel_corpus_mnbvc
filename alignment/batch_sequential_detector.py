@@ -11,8 +11,9 @@ from difflib import SequenceMatcher
 import tiktoken
 import pylcs
 
-from text_segmenter import HardLineBreakDetector
-import utils
+from .text_segmenter import HardLineBreakDetector
+
+from . import utils
 
 LCSTokenInfo = namedtuple('LCSTokenInfo', ('token', 'length', 'source_line_id'))
 

@@ -8,7 +8,7 @@ with open(os.path.join(here, 'requirements.txt')) as f:
 
 setup(
     name='parallel_corpus_mnbvc',
-    version='1.0.4',
+    version='1.0.7',
     author='ranWang',
     author_email='redamancy0326@gmail.com',
     description='parallel corpus dataset from the pypi repository of the mnbvc project',
