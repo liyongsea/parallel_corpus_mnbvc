@@ -26,7 +26,7 @@ twine upload dist/*
 
 ## 使用方式
 
-### 安装
+<h3 name="install-title">安装</h3>
 
 #### 从本地安装
 ```bash
