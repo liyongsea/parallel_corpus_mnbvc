@@ -18,7 +18,7 @@ wandb login
 
 Here is an example command to evaluate the performance of the "PunctuationAndCapitalLetterDetector":
 ```
-python evaluate_segmentation.py GptBatchDetector --remove_long_file True --detector_config '{"token_limit": 256}'
+python -m alignment.evaluate_segmentation GptBatchDetector --remove_long_file True --detector_config '{"token_limit": 256}'
 ```
 
 ## Performance Results
