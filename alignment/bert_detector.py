@@ -34,6 +34,18 @@ class TextClassifier(nn.Module):
         return output.squeeze()
 
 
+class HfClassifier:
+
+    def __init__(self, model):
+        self.model = model
+
+    def __call__(self, inputs):
+        return self.model(inputs).logits.squeeze()[1]
+    
+    def eval(self):
+        self.model.eval()
+
+
 class BertLineBreakDetector(HardLineBreakDetector):
 
     def __init__(self, name, model=None, tokenizer=None):

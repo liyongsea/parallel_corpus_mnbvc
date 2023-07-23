@@ -11,7 +11,7 @@ import wandb
 from alignment.text_segmenter import *
 from alignment.batch_detector import GPTBatchDetector
 from alignment.batch_sequential_detector import GPTBatchSequentialDetector
-from alignment.bert_detector import BertLineBreakDetector
+from alignment.bert_detector import BertLineBreakDetector, HfClassifier
 from alignment.rule_based_detector import RuleBasedDetector
 import alignment.utils as utils
 
@@ -44,8 +44,14 @@ def main(detector_name, remove_long_file, detector_config):
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = _get_folder_from_config(detector_config)
         detector = GPTBatchDetector('gpt-remote', cache_dir, token_limit=token_limit)
+    elif detector_name == "LSTMLineBreakDetector":
+        detector = BertLineBreakDetector.from_file('LSTMDetector', './notebooks/model.pt', 'bert-base-cased')
     elif detector_name == "BertLineBreakDetector":
-        detector = BertLineBreakDetector.from_file('BertDetector', './notebooks/model.pt', 'bert-base-cased')
+        from transformers import AutoModelForSequenceClassification
+        from transformers import DistilBertTokenizer
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-cased')
+        model = AutoModelForSequenceClassification.from_pretrained("liyongsea/bert_segmenter")
+        detector = BertLineBreakDetector('BertDetector', HfClassifier(model), tokenizer)
     elif detector_name == "GptBatchSequentialDetector":
         print("using confing", detector_config)
         token_limit = detector_config.get('token_limit', 1400)
