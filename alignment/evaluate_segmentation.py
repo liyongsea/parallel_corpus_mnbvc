@@ -57,6 +57,9 @@ def main(detector_name, remove_long_file, detector_config):
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = 'batch_sequential_' + _get_folder_from_config(detector_config)
         detector = GPTBatchSequentialDetector('gpt-remote', cache_dir, token_limit=token_limit, use_proxy=True)
+    elif issubclass(detector_name.__class__, HardLineBreakDetector):
+        print("Assuming detector is passed as a object")
+        detector = detector_name
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
