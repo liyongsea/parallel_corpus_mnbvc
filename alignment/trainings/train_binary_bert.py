@@ -28,13 +28,6 @@ def load_model():
     return tokenizer, model
 
 
-def tokenize_function(examples):
-    """
-    Apply tokenization to the dataset.
-    """
-    return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=64)
-
-
 def compute_metrics(eval_pred):
     """
     Compute the evaluation metric.
@@ -58,6 +51,14 @@ def main():
 
     # Load the tokenizer and model
     tokenizer, model = load_model()
+
+
+    def tokenize_function(examples):
+        """
+        Apply tokenization to the dataset.
+        """
+        return tokenizer(examples["text"], padding="max_length", truncation=True, max_length=64)
+
 
     # Tokenize the dataset
     tokenized_datasets = pair_ds.map(tokenize_function, batched=True)
