@@ -77,3 +77,11 @@ os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --dataset_ind
 每个文件完成时，本地工作目录下的`batch_cache/done`里会存有已经处理完毕的文件标号及其分段结果。
 
 如果一个文件的任务在极端情况下（断网，openai的server error，overload error等）无法被完成，脚本会抛exception然后直接中断，返回码非零。这种情况下并发调用的脚本应该记一下文件号，然后先不管这个任务，让其它任务继续。下次运行前我们再分析这些未被正确处理的文件。
+
+
+## Training
+
+Finetuned Bert for binary classification
+```python
+python train_binary_bert.py --output_dir my_output_dir
+```

@@ -1,5 +1,7 @@
 datasets==2.10
 transformers==4.20.0
+accelerate==0.21.0
+evaluate
 sentencepiece
 lxml
 wandb
