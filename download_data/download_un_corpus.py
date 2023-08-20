@@ -224,7 +224,7 @@ def process_url(url, force_to_save):
     has_new = False
     counter += 1
 
-    if url.lower()[-4:] == '.pdf' or url.lower()[-4:] == '.doc' or url.lower()[-5:] == '.doc_and_wpf':
+    if url.lower()[-4:] == '.pdf' or url.lower()[-4:] == '.doc' or url.lower()[-5:] == '.docx':
         # 目前仅下载这3种文件，其余格式的二进制文件基本上没有有效文本暂不考虑了
         status = save_file(url)
         tmp_url_status[url] = status
