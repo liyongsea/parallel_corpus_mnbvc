@@ -44,9 +44,12 @@ def get_dataset(link):
     return dataset
 
 def get_tuple(dataset,n):#————取字典第n条内容建立一个元组————
-
     url = dataset["train"][n]['链接']#取url
     code = dataset["train"][n]['文号']#取文号
+    if code is None:
+        print(f"Warning: '文号' value is None for index {n}")
+        return (url, "default_code", dataset["train"][n]['语言'])
+
     code = code.replace("/","_")
     code = code.replace("\\", "_")
     langue=dataset["train"][n]['语言']#取名
