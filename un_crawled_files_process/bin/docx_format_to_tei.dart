@@ -23,7 +23,7 @@ void main(List<String> args) {
         .createSync(recursive: true);
     //这里是windows下运行，如果是linux或者其他系统，需要改exe后缀
     for (var file in directory.listSync()) {
-      final a = Process.runSync(
+      Process.runSync(
           'pandoc.exe',
           [
             '${file.path}',
@@ -32,6 +32,8 @@ void main(List<String> args) {
           ],
           runInShell: true);
     }
+    //处理一个删一个，方便断点重新开始
+    directory.deleteSync(recursive: true);
 
     processProgress++;
   }
