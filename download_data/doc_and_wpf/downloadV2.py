@@ -5,12 +5,11 @@
 """
 
 import argparse as ap
+import threading as th
 import pandas as pd
 import requests as re
-import threading as th
 import time
 import os
-import sys
 import numpy
 
 from tqdm import tqdm
@@ -26,7 +25,7 @@ from functools import partial
 class CookieManager:
     def __init__(self):
         self.session = re.session()
-        self.cookie_refresh_interval = 3600  # 设定每隔1小时（3600秒）刷新一次cookie
+        self.cookie_refresh_interval = 600  # 设定每隔1分钟（600秒）刷新一次cookie
         self.last_refresh_time = time.time() - self.cookie_refresh_interval - 1  # 使得第一次请求能够获取cookie
 
     def get_cookie(self):
@@ -37,7 +36,9 @@ class CookieManager:
         return self.session.cookies
 
     def refresh_cookie(self):
-        self.session.post(url="https://documents.un.org/prod/ods.nsf/home.xsp")
+        response = self.session.post(url="https://documents.un.org/prod/ods.nsf/home.xsp", timeout=30)
+        if response.status_code != 200:
+            raise ValueError("cookie请求失败。状态码: {}".format(response.status_code))
 
 def get_dataset(link):
     dataset = load_dataset(link)
@@ -48,7 +49,7 @@ def get_tuple(dataset,n):#————取字典第n条内容建立一个元组�
     code = dataset["train"][n]['文号']#取文号
     if code is None:
         print(f"Warning: '文号' value is None for index {n}")
-        return (url, "default_code", dataset["train"][n]['语言'])
+        return None
 
     code = code.replace("/","_")
     code = code.replace("\\", "_")
@@ -67,18 +68,23 @@ def mkdir(path):#————创建目录文件夹————
 #     cook = sesObject.cookies
 #     return(cook)
 
+def is_valid_content(content):# 将二进制内容转为字符串来检查是否包含HTTP或BODY标签
+    content_str = content.decode('utf-8', errors='ignore')  # 将二进制内容转为字符串
+    if '<!doctype html public ' in content_str.lower() and '<html>' in content_str.lower() and '<head>' in content_str.lower():
+        print('false')
+        return False
+    return True
 
 def run(tuple_start,cookie_n,save_path):#————下载线程————
     urln = tuple_start[0]
     code_n = tuple_start[1]
     langue_n = tuple_start[2]
-    d_file(urln, code_n, langue_n, cookie_n, save_path)
+    try:
+        d_file(urln, code_n, langue_n, cookie_n, save_path)
+    except ValueError:
+        print(urln,"下载失败")
+        raise
 
-def is_valid_content(content):
-    # 将二进制内容转为字符串来检查是否包含 "HTTP"
-    if "HTTP" in content.decode('utf-8', errors='ignore'):
-        return False
-    return True
 
 
 def d_file(urln, code_n, langue_n, cookie_n, save_path):  # ————下载单个文档————
@@ -87,54 +93,59 @@ def d_file(urln, code_n, langue_n, cookie_n, save_path):  # ————下载�
 
     # 确保文件后缀为 .wpf 或 .doc
     if file_extension not in ['.wpf', '.doc']:
-        raise ValueError(f"The file extension {file_extension} is not supported.")
-
+        raise ValueError(f"{file_extension}路径无效")
 
     nameFile = langue_n + "-" + urln[-12:]
     menu_path = os.path.join(save_path, code_n)
-    mkdir(menu_path)
     namePath = os.path.join(menu_path, nameFile)
 
     res = re.get(urln, cookies=cookie_n)
 
-    # 检查内容是否有效
-    if not is_valid_content(res.content):
-        raise ValueError(f"The content downloaded from {urln} seems to be invalid or an error page.")
-
-    with open(namePath, 'wb') as f:
-        f.write(res.content)  # 写入doc
-
-    # print("当前url:", urln,nameFile, "下载完成", '\n')
+    if is_valid_content(res.content) == False:
+        raise ValueError
+    else:
+        mkdir(menu_path)
+        with open(namePath, 'wb') as f:
+            f.write(res.content)  # 写入doc
+            res.raw.close()
     return
 
 #————————————主程序————————————
 if __name__ == '__main__':
-    print("start")
 
 #从命令行获取存储路径
     parser = ap.ArgumentParser(description="用以指定地址存储")#parser创建了arg_parser对象,字符串在生成的帮助信息中显示
     parser.add_argument("-o","--output_file",help="输出文件的路径")#添加一个--output_file的位置参数，--说明其为可选参数，简写为-o
     args= parser.parse_args()
     save_path=args.output_file
+    # save_path="E:\MNBVC"
     print("输出路径",save_path)
 
-#从网页上获取链接数据
+#获取cookie
     cookie_manager = CookieManager()
+    try:
+        cookie_n=cookie_manager.get_cookie()
+    except ValueError:
+        print("cookie请求失败.")
+#从网页上获取链接数据
     link = 'dabaisuv/UN_Documents_2000_2023'
     dataset = get_dataset(link)
-    num_row = len(dataset["train"]['链接'])
-    test = num_row
 
-#获取cookie
-    cookie_n=cookie_manager.get_cookie()
+    num_row = len(dataset["train"]['链接'])  #测试行数20
+    print("链接获取完成")
+
 
 #多线程尝试
     queue = Queue()#下载任务队列
 
-    for i in range(0,test): #构造一个行数个的任务队列（测试20个）
+    for i in range(0,num_row): #构造一个行数个的任务队列（测试20个）
         tuple_UN = get_tuple(dataset,i)
-        queue.put(tuple_UN)#向任务队列中置入元组 正确
-    print("queue 开始大小 %d" % queue.qsize())#开始时显示大小 正确
+        if tuple_UN is not None:
+            queue.put(tuple_UN)#向任务队列中置入元组
+    print("任务创建完成，开始下载：开始大小 %d" % queue.qsize())#开始时显示大小 正确
+
+    max_errors = 10
+    error_count = 0
 
     with ThreadPoolExecutor(max_workers=36) as executor:
         futures = []
@@ -142,11 +153,17 @@ if __name__ == '__main__':
             partial_process_row = partial(run, tuple_start=queue.get(), cookie_n=cookie_n, save_path=save_path)
             futures.append(executor.submit(partial_process_row))
 
-        for future in tqdm(as_completed(futures), total=test, desc="下载进度", unit_scale=True):
-            pass
+        for future in tqdm(as_completed(futures), total=num_row, desc="下载进度", unit_scale=True):
+            try:
+                future.result()  # 这会抛出任何由线程引起的异常
+            except ValueError:
+                print("下载失败")
+                error_count += 1
+                if error_count == max_errors:
+                    executor.shutdown(wait=False)
+                    print("超过错误阈值，终止所有线程")
+                    break  # 退出for循环
 
+
+    print(f"总共有 {error_count} 个文件下载失败。")
     print("queue 结束大小 %d"%queue.qsize())
-    j = test-queue.qsize()
-
-    # print("读取存储路径时间",t1,"秒，获取数据库时间",t2,"秒，获取cookie时间",t3,"秒，构建任务队列1时间",t3_5,"秒，写入任务队列时间",t4/60,"分，写入时间",t5,"秒")
-    # print("下载结束,文件总数：",num_row,"个,共下载",j,"个文件，用时",time_sum/60,"分，存储位置",save_path)
