@@ -32,17 +32,25 @@ class CookieManager:
 
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')#现在时间
 
-        if self.last_cookie == self.session.cookies:#对比是否更新
+        if self.last_cookie == self.session.cookies: #对比是否更新
             print(f"\n{current_time} -cookie更新失败")
         else:
             print(f"\n{current_time} -cookie更新成功")
             self.last_cookie = self.session.cookies
+
         return self.session.cookies
 
 class Downloader:
-    def __init__(self, cookie_n, save_path):
-        self.cookie_n = cookie_n
+    def __init__(self, save_path):
         self.save_path = save_path
+
+        self.refresh_cookie()
+        # Todo: 生产/merge 时记得改一下，现在是10s一刷新
+        schedule.every(10).seconds.do(self.refresh_cookie)
+
+    def refresh_cookie(self):
+        cookie_manager = CookieManager()
+        self.cookie_n = cookie_manager.get_cookie()
 
     def run(self,stop_event, tuple_start):  # ————下载线程————
         if stop_event.is_set():
@@ -87,7 +95,6 @@ class Downloader:
         return True
 
     def d_file(self,urln,tuple_path):  # ————下载单个文档————
-
         menu_path = tuple_path[0]
         name_path = tuple_path[1]
 
@@ -132,29 +139,25 @@ def get_tuple(dataset,n):#————取字典第n条内容建立一个元组�
 #————————————主程序————————————
 if __name__ == '__main__':
 
-#从命令行获取存储路径
+    #从命令行获取存储路径
     parser = ap.ArgumentParser(description="用以指定地址存储")#parser创建了arg_parser对象,字符串在生成的帮助信息中显示
     parser.add_argument("-o","--output_file",help="输出文件的路径")#添加一个--output_file的位置参数，--说明其为可选参数，简写为-o
     args= parser.parse_args()
     save_path=args.output_file
     print("输出路径",save_path)
 
-#获取并定时获取cookie
-    get_cookie_task()
-    schedule.every(30).minutes.do(get_cookie_task)
+    #调用下载类
+    downloader = Downloader(save_path=save_path)
 
-#调用下载类
-    downloader = Downloader(cookie_n=cookie_n, save_path=save_path)
-
-#从网页上获取链接数据
+    #从网页上获取链接数据
     link = 'dabaisuv/UN_Documents_2000_2023'
     dataset = get_dataset(link)
     num_row = len(dataset["train"]['链接'])
     print("链接获取完成")
 
-#多线程
+    #多线程
     queue = Queue() #下载任务队列
-    max_workers = 36 #线程数
+    max_workers = 2 #线程数
     max_errors = 10 #最大错误数量
     error_count = 0 #错误计数变量
     stop_event = th.Event() #终止事件
