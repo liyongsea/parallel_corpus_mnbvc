@@ -141,7 +141,7 @@ if __name__ == '__main__':
 
 #获取并定时获取cookie
     get_cookie_task()
-    schedule.every(0.5).minutes.do(get_cookie_task)
+    schedule.every(30).minutes.do(get_cookie_task)
 
 #调用下载类
     downloader = Downloader(cookie_n=cookie_n, save_path=save_path)
