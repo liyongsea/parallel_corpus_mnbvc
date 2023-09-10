@@ -19,18 +19,34 @@ from datetime import datetime
 from pathlib import Path
 
 class CookieManager:
+    """
+    管理session中的cookies。
+    """
+    
     def __init__(self):
+        """
+        初始化session和最后的cookie属性。
+        """
         self.session = re.Session()
         self.last_cookie = None
 
     def get_cookie(self):
+        """
+        从目标URL请求并获取新的cookie。
+
+        返回:
+            session.cookies: 返回会话的cookies。
+
+        异常:
+            ValueError: 如果获取cookie的请求失败。
+        """
         response = self.session.post(url="https://documents.un.org/prod/ods.nsf/home.xsp", timeout=30)
         if response.status_code != 200:
             raise ValueError("cookie请求失败。状态码: {}".format(response.status_code))
 
         current_cookie = dict(self.session.cookies)  # 将cookie转换为字典形式
 
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')#现在时间
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S') # 现在时间
 
         if self.last_cookie == self.session.cookies: #对比是否更新
             print(f"\n{current_time} -cookie更新失败")
@@ -41,7 +57,13 @@ class CookieManager:
         return self.session.cookies
 
 class Downloader:
+    """
+    处理下载操作。
+    """
     def __init__(self, save_path):
+        """
+        使用给定的保存路径初始化下载器，并安排刷新cookie。
+        """
         self.save_path = save_path
 
         self.refresh_cookie()
@@ -49,10 +71,19 @@ class Downloader:
         schedule.every(10).seconds.do(self.refresh_cookie)
 
     def refresh_cookie(self):
+        """
+        使用CookieManager刷新cookie。
+        """
         cookie_manager = CookieManager()
         self.cookie_n = cookie_manager.get_cookie()
 
-    def run(self,stop_event, tuple_start):  # ————下载线程————
+    def run(self,stop_event, tuple_start):
+        """
+        运行下载进程。
+
+        返回:
+            bool: 如果下载成功，则返回True，否则返回字符串"error"。
+        """
         if stop_event.is_set():
             return
 
@@ -68,7 +99,13 @@ class Downloader:
             print(urln, "下载失败")
             return "error"
 
-    def set_path(self,urln, code_n, langue_n, save_path):  # ————文件路径与后缀名————
+    def set_path(self,urln, code_n, langue_n, save_path):
+        """
+        根据给定的参数设置文件路径。
+
+        返回:
+            tuple: 包含目录和文件路径的元组。
+        """
         file_extension = os.path.splitext(urln)[-1].lower()
 
         # 确保文件后缀为 .wpf 或 .doc
@@ -82,10 +119,23 @@ class Downloader:
 
         return tuple_path
 
-    def mkdir(path):#————创建目录文件夹————
+    def mkdir(path):
+        """
+        在给定的路径创建一个目录。
+
+        参数:
+            path (str): 要创建的目录的路径。
+        """
         Path(path).mkdir(parents=True, exist_ok=True)
 
-    def is_valid_content(content):#————将二进制内容转为字符串来检查是否包含HTTP或BODY标签———— 正确
+    def is_valid_content(content):
+        """
+        检查内容是否为有效的非HTML内容。将二进制内容转为字符串来检查是否包含HTTP或BODY标签———— 正确
+
+        返回:
+            bool: 如果有效，则为True，否则为False。
+        """
+
         content_str = content.decode('utf-8', errors='ignore')  # 将二进制内容转为字符串
         if '<!doctype html public ' in content_str.lower() \
                        and '<html>' in content_str.lower() \
@@ -94,83 +144,123 @@ class Downloader:
             return False
         return True
 
-    def d_file(self,urln,tuple_path):  # ————下载单个文档————
+    def d_file(self,urln,tuple_path):
+        """
+        下载单个文件。
+
+        参数:
+            urln (str): 要下载的文件的URL。
+            tuple_path (tuple): 包含目录和文件路径的元组。
+
+        异常:
+            ValueError: 如果内容无效。
+        """
         menu_path = tuple_path[0]
         name_path = tuple_path[1]
 
-        res = re.get(urln, cookies=self.cookie_n)#获取文本内容
+        res = re.get(urln, cookies=self.cookie_n) # 获取文本内容
 
-        if Downloader.is_valid_content(res.content) == False:#判断文本是否正确
+        if Downloader.is_valid_content(res.content) == False: # 判断文本是否正确
             raise ValueError
-        else:#创建文件夹，创建路径并写入
+        else: # 创建文件夹，创建路径并写入
             Downloader.mkdir(menu_path)
             with open(name_path, 'wb') as f:
                 f.write(res.content)  # 写入doc
                 res.raw.close()
         return
 
-def get_cookie_task():
-    global cookie_n
-    cookie_manager = CookieManager()
-    cookie_n = cookie_manager.get_cookie()
+def schedule_runner(finish_event): # 每秒检查一次cookie获取
+    """
+    定期运行计划任务，每秒检查一次是否需要根据 finish_event 标志停止。
 
-def schedule_runner(finish_event):# 每秒检查一次cookie获取
+    参数：
+        - finish_event (Event): 一个事件，用于指示何时停止计划运行器。
+        
+    使用：
+        - schedule: 一个应该被导入以处理调度的模块。
+        - time: 一个应该被导入以处理时间操作的模块。
+
+    """
     while not finish_event.is_set():
         schedule.run_pending()
         time.sleep(1)
 
-def get_dataset(link):#———— 取数据库————
+def get_dataset(link):
+    """
+    从给定的链接获取数据集。
+
+    参数：
+        - link (str): 用于获取数据集的链接。
+        
+    使用：
+        - load_dataset: 一个函数，应定义为从链接加载数据集。
+
+    返回：
+        - dataset: 从链接获取的数据集。
+    """
     dataset = load_dataset(link)
     return dataset
 
-def get_tuple(dataset,n):#————取字典第n条内容建立一个元组————
-    url = dataset["train"][n]['链接']#取url
-    code = dataset["train"][n]['文号']#取文号
+def get_tuple(dataset,n): # ————取字典第n条内容建立一个元组————
+    """
+    创建一个包含从数据集的第n个条目中提取的数据的元组。
+
+    参数：
+        - dataset (dict): 表示数据集的字典。
+        - n (int): 要提取数据的条目的索引。
+        
+    返回：
+        - tuple_u_n (tuple): 包含第n个条目的URL、代码和语言的元组。
+        - None: 如果第n个条目在数据集中的'文号'值为None。
+    """
+    url = dataset["train"][n]['链接'] # 取url
+    code = dataset["train"][n]['文号'] # 取文号
     if code is None:
         print(f"Warning: '文号' value is None for index {n}")
         return None
 
     code = code.replace("/","_")
     code = code.replace("\\", "_")
-    langue=dataset["train"][n]['语言']#取名
+    langue=dataset["train"][n]['语言'] # 取名
     tuple_u_n=(url,code,langue)
     return tuple_u_n
 
 #————————————主程序————————————
 if __name__ == '__main__':
 
-    #从命令行获取存储路径
-    parser = ap.ArgumentParser(description="用以指定地址存储")#parser创建了arg_parser对象,字符串在生成的帮助信息中显示
-    parser.add_argument("-o","--output_file",help="输出文件的路径")#添加一个--output_file的位置参数，--说明其为可选参数，简写为-o
+    # 从命令行获取存储路径
+    parser = ap.ArgumentParser(description="用以指定地址存储") # parser创建了arg_parser对象,字符串在生成的帮助信息中显示
+    parser.add_argument("-o","--output_file",help="输出文件的路径") # 添加一个--output_file的位置参数，--说明其为可选参数，简写为-o
     args= parser.parse_args()
     save_path=args.output_file
     print("输出路径",save_path)
 
-    #调用下载类
+    # 调用下载类
     downloader = Downloader(save_path=save_path)
 
-    #从网页上获取链接数据
+    # 从网页上获取链接数据
     link = 'dabaisuv/UN_Documents_2000_2023'
     dataset = get_dataset(link)
     num_row = len(dataset["train"]['链接'])
     print("链接获取完成")
 
-    #多线程
-    queue = Queue() #下载任务队列
-    max_workers = 2 #线程数
-    max_errors = 10 #最大错误数量
-    error_count = 0 #错误计数变量
-    stop_event = th.Event() #终止事件
-    finish_event = th.Event() #全局结束事件
+    # 多线程
+    queue = Queue() # 下载任务队列
+    max_workers = 2 # 线程数
+    max_errors = 10 # 最大错误数量
+    error_count = 0 # 错误计数变量
+    stop_event = th.Event() # 终止事件
+    finish_event = th.Event() # 全局结束事件
 
-    cookie_thread = th.Thread(target=schedule_runner, args=(finish_event,))#检测获取cookie时间
+    cookie_thread = th.Thread(target=schedule_runner, args=(finish_event,)) # 检测获取cookie时间
     cookie_thread.start()
 
-    for i in range(0,2000): #构造一个行数个的任务队列（测试N个）num_row个
+    # 构造一个行数个的任务队列（测试N个）num_row个
+    for i in range(0,2000): 
         tuple_UN = get_tuple(dataset,i)
         if tuple_UN is not None:
-            queue.put(tuple_UN)#向任务队列中置入元组
-    print("任务创建完成，开始下载：开始大小 %d" % queue.qsize())#开始时显示大小 正确
+            queue.put(tuple_UN) # 向任务队列中置入元组
+    print("任务创建完成，开始下载：开始大小 %d" % queue.qsize()) # 开始时显示大小 正确
 
     with ThreadPoolExecutor(max_workers) as executor:
         futures = []
