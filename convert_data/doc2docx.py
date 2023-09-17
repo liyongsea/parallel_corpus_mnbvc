@@ -5,6 +5,7 @@ from win32com.client import constants
 from pathlib import Path
 import shutil
 import multiprocessing as mp
+import psutil
 
 # import timeout_decorator # windows下不可用，缺少系统信号
 
@@ -20,6 +21,7 @@ def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.doc
 # @timeout_decorator.timeout(10)
 def save_as_docx(file_location):
     doc = None
+    word = None
     try:
         # 获取文件的绝对路径，在Windows下调用客户端时必须使用绝对路径，否则无法打开
         file_abs = os.path.abspath(file_location)
@@ -38,7 +40,6 @@ def save_as_docx(file_location):
         # 创建一个用于打开Word文档的客户端对象，需要下载WPS或者Office(Microsoft Word)
         word = win32.gencache.EnsureDispatch('Word.Application')
 
-
         # 打开指定路径的文档
         doc = word.Documents.Open(file_abs)
         doc.Activate()
@@ -50,11 +51,16 @@ def save_as_docx(file_location):
         # 关闭打开的文档资源
         doc.Close(False)
         doc = None
+        word.Quit()
+        word = None
     except:
         with open(err_path(file_abs), 'w') as f:
             pass
         if doc is not None:
             doc.Close(False)
+        if word is not None:
+            word.Quit()
+
 
 
 def task_wrapper(q1: mp.Queue):
@@ -73,14 +79,14 @@ def task_wrapper(q1: mp.Queue):
         # save_as_docx(absfn)
 
 if __name__ == '__main__':
-    mng = mp.Manager()
-    q1 = mng.Queue(maxsize=WORKER_CNT)
-    consumers = [
-        mp.Process(target=task_wrapper,
-            args=(q1,)
-        ) for _ in range(WORKER_CNT)
-    ]
-    for x in consumers: x.start()
+    # mng = mp.Manager()
+    # q1 = mng.Queue(maxsize=WORKER_CNT)
+    # consumers = [
+    #     mp.Process(target=task_wrapper,
+    #         args=(q1,)
+    #     ) for _ in range(WORKER_CNT)
+    # ]
+    # for x in consumers: x.start()
 
     # 创建输出目录的文件夹
     Path(SAVED_DIR).mkdir(exist_ok=True)
@@ -108,6 +114,12 @@ if __name__ == '__main__':
                         proc.join()
                         with open(err_path(absfn), 'w') as f:
                             pass
-
-    for _ in consumers: q1.put(None)
-    for x in consumers: x.join()
+                    for process in psutil.process_iter(attrs=['pid', 'name']):
+                        if process.info['name'] == "WINWORD.EXE":
+                            pid = process.info['pid']
+                            p = psutil.Process(pid)
+                            # p.terminate()  # 终止进程
+                            p.kill()
+                            print('killed', pid, process.info['name'])
+    # for _ in consumers: q1.put(None)
+    # for x in consumers: x.join()
