@@ -19,6 +19,7 @@ def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.doc
 
 # @timeout_decorator.timeout(10)
 def save_as_docx(file_location):
+    doc = None
     try:
         # 获取文件的绝对路径，在Windows下调用客户端时必须使用绝对路径，否则无法打开
         file_abs = os.path.abspath(file_location)
@@ -35,7 +36,7 @@ def save_as_docx(file_location):
             return
 
         # 创建一个用于打开Word文档的客户端对象，需要下载WPS或者Office(Microsoft Word)
-        word = win32.Dispatch('Word.Application')
+        word = win32.gencache.EnsureDispatch('Word.Application')
 
 
         # 打开指定路径的文档
@@ -48,10 +49,12 @@ def save_as_docx(file_location):
         
         # 关闭打开的文档资源
         doc.Close(False)
+        doc = None
     except:
         with open(err_path(file_abs), 'w') as f:
             pass
-            # f.write(f"error: {file_location}\n")
+        if doc is not None:
+            doc.Close(False)
 
 
 def task_wrapper(q1: mp.Queue):
@@ -96,7 +99,15 @@ if __name__ == '__main__':
                 os.remove(absfn)
             elif dfn.lower().endswith(".doc"):
                 if not os.path.exists(saved_path(absfn)) and not os.path.exists(err_path(absfn)):
-                    q1.put(absfn)
+                    # q1.put(absfn)
+                    proc = mp.Process(target=save_as_docx, args=(absfn,))
+                    proc.start()
+                    proc.join(timeout=10)
+                    if proc.is_alive():
+                        proc.terminate()
+                        proc.join()
+                        with open(err_path(absfn), 'w') as f:
+                            pass
 
     for _ in consumers: q1.put(None)
     for x in consumers: x.join()
