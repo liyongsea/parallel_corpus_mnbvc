@@ -21,7 +21,6 @@ def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.doc
 # @timeout_decorator.timeout(10)
 def save_as_docx(file_location):
     doc = None
-    word = None
     try:
         # 获取文件的绝对路径，在Windows下调用客户端时必须使用绝对路径，否则无法打开
         file_abs = os.path.abspath(file_location)
@@ -51,15 +50,11 @@ def save_as_docx(file_location):
         # 关闭打开的文档资源
         doc.Close(False)
         doc = None
-        word.Quit()
-        word = None
     except:
         with open(err_path(file_abs), 'w') as f:
             pass
         if doc is not None:
             doc.Close(False)
-        if word is not None:
-            word.Quit()
 
 
 
