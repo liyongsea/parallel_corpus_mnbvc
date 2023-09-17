@@ -38,7 +38,7 @@ def save_as_docx(file_location):
             return
 
         # 创建一个用于打开Word文档的客户端对象，需要下载WPS或者Office(Microsoft Word)
-        word = win32.gencache.Dispatch('Word.Application')
+        word = win32.gencache.EnsureDispatch('Word.Application')
 
         # 打开指定路径的文档
         doc = word.Documents.Open(file_abs)
