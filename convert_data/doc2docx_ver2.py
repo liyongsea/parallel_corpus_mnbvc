@@ -126,10 +126,13 @@ def entrance(FROM=FROM, TO=TO, STEP=STEP):
             proc.join()
             kill_word()
             subdir, filenames = li[cur]
-            absfn = os.path.join(SOURCE_DIR, subdir, filenames[cursor])
-            with open(err_path(absfn), 'w') as f:
-                pass
-            print('kill at task:', cur, cursor, absfn)
+            if cursor < len(filenames):
+                absfn = os.path.join(SOURCE_DIR, subdir, filenames[cursor])
+                with open(err_path(absfn), 'w') as f:
+                    pass
+                print('kill at task:', cur, cursor, absfn)
+            else:
+                print('unknown index:', cursor, filenames)
             cursor += 1
             proc = mp.Process(target=save_as_docx, args=(cur, TO, STEP, True, cursor, q))
             proc.start()
