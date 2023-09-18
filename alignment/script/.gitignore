@@ -1,0 +1,10 @@
+done/
+post/
+dump/
+converted/
+*.arrow
+chatgptoutputs.jsonl
+chatgptexception.jsonl
+log.txt
+dataset_info.json
+state.json
