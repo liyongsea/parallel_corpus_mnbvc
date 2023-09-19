@@ -23,7 +23,7 @@ GROUP_CACHE_DIR = BASE_DIR + r'\dirmappingcache.pkl'
 def err_path(file_abs): return os.path.join(ERR_LOG_DIR, re.sub(r'\.\w+$', '.log', file_abs.split('\\')[-1]))
 def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.docx', file_abs.split('\\')[-1]))
 
-app = FastAPI(redoc_url=None)
+app = FastAPI(redoc_url=None, docs_url=None, swagger_ui_init_oauth=None, openapi_url=None)
 
 pending = set()
 todo = set()
@@ -47,26 +47,26 @@ async def recover(task):
 async def task_submit(r: Request, fil: Annotated[bytes, File()]):
     task = base64.b64decode(r.headers['taskid']).decode()
     if task not in pending:
-        return 'not pending ' + task
+        return False
     pending.remove(task)
     if os.path.exists(saved_path(task)) or os.path.exists(err_path(task)):
-        return 'already exists ' + task
+        return False
     with open(saved_path(task), 'wb') as f:
         f.write(fil)
-    return 'ok ' + saved_path(task)
+    return True
 
 @app.post('/uplerr')
 async def task_error(r: Request):
     task = base64.b64decode(r.headers['taskid']).decode()
     if task not in pending:
-        return 'not pending ' + task
+        return False
     pending.remove(task)
     if os.path.exists(saved_path(task)) or os.path.exists(err_path(task)):
-        return 'already exists ' + task
+        return False
     print('report err file:', task)
     with open(err_path(task), 'w') as f:
         pass
-    return 'ok ' + saved_path(task)
+    return True
 
 @app.get('/')
 async def task_getter():
