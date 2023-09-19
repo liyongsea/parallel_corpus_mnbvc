@@ -78,7 +78,7 @@ if __name__ == '__main__':
             p.join()
             kill_word()
             if prvtask is not None:
-                requests.post(API_HOST + '/uplerr', data={'task': prvtask})
+                requests.post(API_HOST + '/uplerr', data={'task': prvtask}, headers={'taskid': prvtask})
             print('error:', base64.b64decode(prvtask.encode()).decode())
             p = mp.Process(target=save_as_docx, args=(q,))
             p.start()
