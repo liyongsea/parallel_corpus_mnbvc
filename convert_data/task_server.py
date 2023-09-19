@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from fastapi.requests import Request
 from fastapi import File
 from typing import Annotated
+from fastapi.middleware.gzip import GZipMiddleware
 import asyncio
 import uvicorn
 import base64
@@ -24,6 +25,7 @@ def err_path(file_abs): return os.path.join(ERR_LOG_DIR, re.sub(r'\.\w+$', '.log
 def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.docx', file_abs.split('\\')[-1]))
 
 app = FastAPI(redoc_url=None, docs_url=None, swagger_ui_init_oauth=None, openapi_url=None)
+app.add_middleware(GZipMiddleware)
 
 pending = set()
 todo = set()
@@ -34,7 +36,7 @@ for subdir, filenames in li:
     for dfn in filenames:
         absfn = os.path.join(SOURCE_DIR, subdir, dfn)
         if not os.path.exists(saved_path(absfn)) and not os.path.exists(err_path(absfn)):
-            todo.add(absfn)
+            todo.add(os.path.join(subdir, dfn))
 print('todo:', len(todo), len(pending))
 
 async def recover(task):
@@ -49,6 +51,7 @@ async def task_submit(r: Request, fil: Annotated[bytes, File()]):
     if task not in pending:
         return False
     pending.remove(task)
+    task = os.path.join(SOURCE_DIR, task)
     if os.path.exists(saved_path(task)) or os.path.exists(err_path(task)):
         return False
     with open(saved_path(task), 'wb') as f:
@@ -61,6 +64,7 @@ async def task_error(r: Request):
     if task not in pending:
         return False
     pending.remove(task)
+    task = os.path.join(SOURCE_DIR, task)
     if os.path.exists(saved_path(task)) or os.path.exists(err_path(task)):
         return False
     print('report err file:', task)
@@ -71,8 +75,10 @@ async def task_error(r: Request):
 @app.get('/')
 async def task_getter():
     cur = todo.pop()
-    while os.path.exists(saved_path(cur)) or os.path.exists(err_path(cur)):
+    abscur = os.path.join(SOURCE_DIR, cur)
+    while os.path.exists(saved_path(abscur)) or os.path.exists(err_path(abscur)):
         cur = todo.pop() # 没有任务抛长度异常
+        abscur = os.path.join(SOURCE_DIR, cur)
     pending.add(cur)
     asyncio.create_task(recover(cur))
     return FileResponse(absfn, headers={'taskid': base64.b64encode(cur.encode()).decode()})

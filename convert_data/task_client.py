@@ -6,26 +6,27 @@ import multiprocessing as mp
 import psutil
 import datetime
 import requests
+import base64
 
 API_HOST = 'http://localhost:29999'
 TEMP_DOC = 'temp.doc'
 TEMP_DOC_LOCKFILE = '~$temp.doc'
 TEMP_DOCX = 'temp.docx'
-TEMP_DOCX_LOCKFILE = '~$temp.docx'
 
 def save_as_docx(qresult: mp.Queue):
     last_time = datetime.datetime.now()
     word = win32.gencache.EnsureDispatch('Word.Application')
     session = requests.session()
+    session.headers['accept-encoding'] = 'gzip'
     absdoc = os.path.abspath(TEMP_DOC)
     absdocx = os.path.abspath(TEMP_DOCX)
 
     while 1:
-        print('get task', API_HOST + '/')
+        # print('get task', API_HOST + '/')
         task_resp = session.get(API_HOST + '/')
 
         tid = task_resp.headers['taskid']
-        print('task_resp', tid, len(task_resp.content))
+        # print('task_resp', tid, len(task_resp.content))
         qresult.put(tid)
         with open(absdoc, 'wb') as f:
             f.write(task_resp.content)
@@ -50,7 +51,7 @@ def save_as_docx(qresult: mp.Queue):
                 doc.Close(False)
                 doc = None
         curr_time = datetime.datetime.now()
-        print(tid, (curr_time - last_time).total_seconds(), resp.text)
+        print((curr_time - last_time).total_seconds(), resp, resp.text)
         last_time = curr_time
     qresult.put(None)
 
@@ -71,13 +72,13 @@ if __name__ == '__main__':
     while 1:
         try:
             prvtask = q.get(timeout=10)
-            print(prvtask)
+            # print(prvtask)
         except Empty:
             p.kill()
             p.join()
             kill_word()
             if prvtask is not None:
                 requests.post(API_HOST + '/uplerr', data={'task': prvtask})
-            print('error:', prvtask)
+            print('error:', base64.b64decode(prvtask.encode()).decode())
             p = mp.Process(target=save_as_docx, args=(q,))
             p.start()
