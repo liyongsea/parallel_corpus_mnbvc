@@ -12,7 +12,7 @@ import uvicorn
 import base64
 
 
-BASE_DIR = r'E:\doc2docxWD'
+BASE_DIR = r'E:\motrixDL\baiduyun\MNBVC'
 ERR_LOG_DIR = BASE_DIR + r'\err'
 SOURCE_DIR = BASE_DIR + r'\MNBVC—UN文件'
 SAVED_DIR = BASE_DIR + r'\docxoutput'
@@ -35,12 +35,12 @@ with open(TASK_CACHE_DIR, 'rb') as f:
 for subdir, filenames in li:
     for dfn in filenames:
         absfn = os.path.join(SOURCE_DIR, subdir, dfn)
-        if not os.path.exists(saved_path(absfn)) and not os.path.exists(err_path(absfn)):
+        if not os.path.exists(saved_path(absfn)) : # and not os.path.exists(err_path(absfn))
             todo.add(os.path.join(subdir, dfn))
 print('todo:', len(todo), len(pending))
 
 async def recover(task):
-    await asyncio.sleep(30)
+    await asyncio.sleep(300)
     if task in pending:
         pending.remove(task)
         todo.add(task)
@@ -81,7 +81,7 @@ async def task_getter():
         abscur = os.path.join(SOURCE_DIR, cur)
     pending.add(cur)
     asyncio.create_task(recover(cur))
-    return FileResponse(absfn, headers={'taskid': base64.b64encode(cur.encode()).decode()})
+    return FileResponse(abscur, filename=os.path.split(cur)[-1], headers={'taskid': base64.b64encode(cur.encode()).decode()})
 
 
 if __name__ == '__main__':
