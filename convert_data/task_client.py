@@ -64,6 +64,7 @@ def kill_word():
 
 
 if __name__ == '__main__':
+    kill_word()
     mgr = mp.Manager()
     q = mgr.Queue()
     p = mp.Process(target=save_as_docx, args=(q,))
