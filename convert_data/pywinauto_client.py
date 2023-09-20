@@ -7,18 +7,18 @@ import psutil
 import datetime
 import requests
 import base64
-import time
+import pywinauto
 
 API_HOST = 'http://localhost:29999'
 TEMP_DOC = 'temp.doc'
 TEMP_DOC_LOCKFILE = '~$temp.doc'
 TEMP_DOCX = 'temp.docx'
-session = requests.session()
-session.headers['accept-encoding'] = 'gzip'
 
 def save_as_docx(qresult: mp.Queue):
     last_time = datetime.datetime.now()
     word = win32.gencache.EnsureDispatch('Word.Application')
+    session = requests.session()
+    session.headers['accept-encoding'] = 'gzip'
     absdoc = os.path.abspath(TEMP_DOC)
     absdocx = os.path.abspath(TEMP_DOCX)
 
@@ -29,13 +29,9 @@ def save_as_docx(qresult: mp.Queue):
         tid = task_resp.headers['taskid']
         # print('task_resp', tid, len(task_resp.content))
         qresult.put(tid)
-        try:
-            with open(absdoc, 'wb') as f:
-                f.write(task_resp.content)
-                f.truncate()
-        except PermissionError:
-            kill_word()
-            continue
+        with open(absdoc, 'wb') as f:
+            f.write(task_resp.content)
+            f.truncate()
 
         if os.path.exists(absdocx):
             os.remove(absdocx)
@@ -48,17 +44,12 @@ def save_as_docx(qresult: mp.Queue):
             doc.SaveAs(absdocx, FileFormat=constants.wdFormatXMLDocument)
             doc.Close(False)
             doc = None
-            if os.stat(absdocx).st_size == 0:
-                raise KeyError('空文件，视为错误')
             resp = session.post(API_HOST + '/upl', files={'fil': open(absdocx, 'rb')}, headers={'taskid': tid})
         except Exception as e:
             print(e)
             resp = session.post(API_HOST + '/uplerr', headers={'taskid': tid})
             if doc is not None:
-                try:
-                    doc.Close(False)
-                except:
-                    pass
+                doc.Close(False)
                 doc = None
         curr_time = datetime.datetime.now()
         print((curr_time - last_time).total_seconds(), resp, resp.text)
@@ -82,20 +73,14 @@ if __name__ == '__main__':
     prvtask = None
     while 1:
         try:
-            prvtask = q.get(timeout=10)
+            prvtask = q.get(timeout=120)
             # print(prvtask)
         except Empty:
             p.kill()
             p.join()
             kill_word()
             if prvtask is not None:
-                while True:
-                    try:
-                        session.post(API_HOST + '/uplerr', data={'task': prvtask}, headers={'taskid': prvtask})
-                        break
-                    except Exception as e:
-                        print(e)
-                        time.sleep(40)
+                requests.post(API_HOST + '/uplerr', data={'task': prvtask}, headers={'taskid': prvtask})
             else:
                 print('error:', base64.b64decode(prvtask.encode()).decode())
                 p = mp.Process(target=save_as_docx, args=(q,))

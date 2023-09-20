@@ -56,6 +56,7 @@ async def task_submit(r: Request, fil: Annotated[bytes, File()]):
         return False
     with open(saved_path(task), 'wb') as f:
         f.write(fil)
+    print(len(todo), len(pending))
     return True
 
 @app.post('/uplerr')
