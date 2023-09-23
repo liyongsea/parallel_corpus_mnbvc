@@ -55,10 +55,20 @@ def save_as_docx(qresult: mp.Queue):
     word = win32.gencache.EnsureDispatch('Word.Application')
     absdoc = os.path.abspath(TEMP_DOC)
     absdocx = os.path.abspath(TEMP_DOCX)
+    request_retries = 3
 
     while 1:
         # print('get task', API_HOST + '/')
-        task_resp = session.get(API_HOST + '/')
+        while 1:
+            try:
+                task_resp = session.get(API_HOST + '/')
+                request_retries = 3
+                break
+            except Exception as e:
+                print(type(e), e)
+                if request_retries == 0:
+                    raise
+                request_retries -= 1
 
         tid = task_resp.headers['taskid']
         # print('task_resp', tid, len(task_resp.content))
@@ -78,10 +88,10 @@ def save_as_docx(qresult: mp.Queue):
             print('detected permission error, kill word')
             time.sleep(3)
             kill_word()
-            word = win32.gencache.EnsureDispatch('Word.Application')
             with open(absdoc, 'wb') as f:
                 f.write(task_resp.content)
                 f.truncate()
+            word = win32.gencache.EnsureDispatch('Word.Application')
 
         if os.path.exists(absdocx):
             try:
@@ -90,8 +100,8 @@ def save_as_docx(qresult: mp.Queue):
                 print('detected permission error, kill word')
                 time.sleep(3)
                 kill_word()
-                word = win32.gencache.EnsureDispatch('Word.Application')
                 os.remove(absdocx)
+                word = win32.gencache.EnsureDispatch('Word.Application')
 
 
 
@@ -129,7 +139,7 @@ def save_as_docx(qresult: mp.Queue):
         except Exception as e:
             print(type(e), e)
             post_error()
-        last_time = curr_time
+        last_time = datetime.datetime.now()
     qresult.put(None)
 
 def scan_word():
@@ -174,7 +184,7 @@ if __name__ == '__main__':
                 while True:
                     try:
                         session.post(API_HOST + '/uplerr', data={'task': prvtask}, headers={'taskid': prvtask})
-                        print('submit error:', base64.b64decode(prvtask.encode()).decode())
+                        print('timeout submit error:', base64.b64decode(prvtask.encode()).decode())
                         break
                     except Exception as e:
                         print(type(e), e, 'network error, retry')
