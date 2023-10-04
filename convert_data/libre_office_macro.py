@@ -1,63 +1,81 @@
 
 import uno
-import time
+import os
+import pickle
+import re
 
 from com.sun.star.beans import PropertyValue
 
 def wpf_to_docx():
-    INPUT_WPF = r'file:///C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\convert_data\temp.wpf'
-    OUTPUT_DOCX = uno.systemPathToFileUrl(r'C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\convert_data\temp.docx')
+    BASE_DIR = r'E:\doc2docxWD'
+    ERR_LOG_DIR = BASE_DIR + r'\err'
+    SOURCE_DIR = BASE_DIR + r'\MNBVC—UN文件'
+    SAVED_DIR = BASE_DIR + r'\wpf_libre_converted'
+    RECOVER_DIR = BASE_DIR + r'\wpf_err_recovered'
+
+    GROUP_CACHE_DIR = BASE_DIR + r'\wpf_mapping.pkl'
+    
+    def err_path(file_abs): return os.path.join(ERR_LOG_DIR, re.sub(r'\.\w+$', '.log', file_abs.split('\\')[-1]))
+    def recover_path(file_abs): return os.path.join(RECOVER_DIR, re.sub(r'\.\w+$', '.docx', file_abs.split('\\')[-1]))
+    def saved_path(file_abs): return os.path.join(SAVED_DIR, re.sub(r'\.\w+$', '.docx', file_abs.split('\\')[-1]))
+
+    todo = set()
+    with open(GROUP_CACHE_DIR, 'rb') as f:
+        wpf_mapping = pickle.load(f)
+
+    for subdir, filenames in wpf_mapping.items():
+        for dfn in filenames:
+            absfn = os.path.join(SOURCE_DIR, subdir, dfn)
+            if not os.path.exists(recover_path(absfn)) : # and not os.path.exists(err_path(absfn))
+                todo.add(os.path.join(subdir, dfn))
 
     # 初始化LibreOffice连接
     ctx = uno.getComponentContext()
-    # resolver = localContext.ServiceManager.createInstanceWithContext(
-        # "com.sun.star.bridge.UnoUrlResolver", localContext)
     smgr = ctx.ServiceManager
     desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
 
     open_mode = uno.createUnoStruct("com.sun.star.beans.PropertyValue")
     open_mode.Name = "ReadOnly"
     open_mode.Value = True
-    # context = resolver.resolve("uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext")
-    # desktop = context.ServiceManager.createInstanceWithContext(
-    #     "com.sun.star.frame.Desktop", context)
+    save_props = (
+        PropertyValue("FilterName", 0, "MS Word 2007 XML", 0),
+        PropertyValue("Overwrite", 0, True, 0),
+    )
 
-    # 打开WPS文件
-    input_file_path = INPUT_WPF
-    # doc = desktop.loadComponentFromURL(input_file_path, "_blank", 0, ())
-    doc = desktop.loadComponentFromURL(input_file_path, "_blank", 0, (open_mode, ))
-    # time.sleep(10)
+    # INPUT_WPF = r'file:///C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\convert_data\temp.wpf'
+    # OUTPUT_DOCX = uno.systemPathToFileUrl(r'C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\convert_data\temp.docx')
+    for task in todo:
+        task = os.path.join(SOURCE_DIR, task)
+        if os.path.exists(saved_path(task)) or os.path.exists(err_path(task)):
+            continue
+        # 打开WPS文件
+        input_file_path = uno.systemPathToFileUrl(task)
+        # doc = desktop.loadComponentFromURL(input_file_path, "_blank", 0, ())
+        doc = desktop.loadComponentFromURL(input_file_path, "_blank", 0, (open_mode, ))
+        # time.sleep(10)
 
-    if doc is not None:
-        try:
-            # 构建输出文件的完整路径
-            output_file_path = OUTPUT_DOCX
-            # time.sleep(10)
+        if doc is not None:
+            try:
+                # 构建输出文件的完整路径
+                output_file_path = uno.systemPathToFileUrl(saved_path(task))
 
-            # 配置保存参数
-            save_props = (
-                PropertyValue("FilterName", 0, "MS Word 2007 XML", 0),
-                PropertyValue("Overwrite", 0, True, 0),
-            )
-            print(dir(save_props))
-            # print(dir(PropertyValue))
+                # 保存文档为docx格式
+                doc.storeToURL(output_file_path, save_props)
 
-            # 保存文档为docx格式
-            doc.storeToURL(output_file_path, save_props)
-            # time.sleep(10)
+                # 关闭文档
+                doc.close(True)
+                print("Conversion completed successfully.")
+            except Exception as e:
+                print(f"Error: {e}")
+                with open(err_path(task), 'w') as f:
+                    f.write(str(e))
+        else:
+            print("Error: Unable to open the input document.")
 
-            # 关闭文档
-            doc.close(True)
-            print("Conversion completed successfully.")
-        except Exception as e:
-            print(f"Error: {e}")
-    else:
-        print("Error: Unable to open the input document.")
-
-    # 退出LibreOffice连接
     desktop.terminate()
 
 
 g_exportedScripts = wpf_to_docx,
 
 # vim: set shiftwidth=4 softtabstop=4 expandtab:
+
