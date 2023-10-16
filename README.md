@@ -6,6 +6,10 @@ parallel corpus dataset from the mnbvc project
 pip install -r requirements.txt
 ```
 
+# Install the repository
+
+[参考](./setup.md#install-title)
+
 
 ### 输出的jsonl格式说明
 

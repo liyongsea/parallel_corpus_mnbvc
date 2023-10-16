@@ -8,11 +8,11 @@ from sklearn.metrics import confusion_matrix, classification_report
 from tqdm import tqdm
 import wandb
 
-from text_segmenter import *
-from batch_detector import GPTBatchDetector
-from batch_sequential_detector import GPTBatchSequentialDetector
-from rule_based_detector import RuleBasedDetector
-import utils
+from .text_segmenter import *
+from .batch_detector import GPTBatchDetector
+from .batch_sequential_detector import GPTBatchSequentialDetector
+from .rule_based_detector import RuleBasedDetector
+from . import utils
 
 
 def _get_folder_from_config(config):
