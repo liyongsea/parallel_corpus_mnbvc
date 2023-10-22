@@ -13,8 +13,8 @@ def load_random_clean_docs(ds, l, r):
     # sample_doc = dataset
     sample_doc = ds.select(range(l, r))
     clean_doc = sample_doc.remove_columns(['ar', 'fr', 'ru', 'es', 'de'])
-    clean_doc = clean_doc.map(lambda x: {'clean_en': [clean_paragraph(para) for para in re.split('\n\n', x['en'])]})
-    clean_doc = clean_doc.map(lambda x: {'clean_zh': [clean_paragraph(para) for para in re.split('\n\n', x['zh'])]})
+    clean_doc = clean_doc.map(lambda x: {'clean_en': list(filter(bool, (clean_paragraph(para) for para in re.split('\n\n', x['en']))))})
+    clean_doc = clean_doc.map(lambda x: {'clean_zh': list(filter(bool, (clean_paragraph(para) for para in re.split('\n\n', x['zh']))))})
     # clean_doc = clean_doc.remove_columns(['zh', 'en'])
     return clean_doc
 
@@ -88,21 +88,19 @@ def install_translator():
 
 
 if __name__ == '__main__':
-    # os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
+    os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
     # use_proxy()
     # install_translator()
     dataset = load_from_disk(PATH)
     STEP = 10
     OUT = Path(rf'F:\undl_en2zh_{STEP}')
     OUT.mkdir(exist_ok=True)
-    for i in range(0, len(dataset), STEP):
+    for i in range(4000, len(dataset), STEP):
         if OUT.joinpath(str(i)).exists():
             print('skip', i)
             continue
         docs = load_random_clean_docs(dataset, i, i + STEP)
-        start = time.perf_counter()
         # docs = docs.map(translate, num_proc=2)
         docs = docs.map(translate)
-        print('translation time: %d' % (time.perf_counter() - start))
         # docs = docs.add_column('translation', trans_docs)
         docs.save_to_disk(OUT.joinpath(str(i)))

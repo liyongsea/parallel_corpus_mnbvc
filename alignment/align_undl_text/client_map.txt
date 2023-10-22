@@ -1,0 +1,3 @@
+argostranslate undl_en2zh_10
+argostranslate_cuda argo_cuda_en2zh
+bing_free bing_en2zh
