@@ -19,61 +19,61 @@ def use_proxy():
 
 LCSTokenInfo = namedtuple('LCSTokenInfo', ('token', 'length', 'source_line_id'))
 def tokenize_by_space_splited_word(input_lines: list[str], output_lines: list[str], offset=0) -> Tuple[list[LCSTokenInfo], list[LCSTokenInfo]]:
-        """
-        Encode `input_lines` and `output_lines` by space splited word as utf-8 single character, to speedup LCS procedure.
-        
-        Args:
-            input_lines (list[str]): The list of lines from source text.
-            output_lines (list[str]): The list of lines from the processed text.
-            offset (int): utf-8 encoding begin offset for tokenizing.
+    """
+    Encode `input_lines` and `output_lines` by space splited word as utf-8 single character, to speedup LCS procedure.
+    
+    Args:
+        input_lines (list[str]): The list of lines from source text.
+        output_lines (list[str]): The list of lines from the processed text.
+        offset (int): utf-8 encoding begin offset for tokenizing.
 
-        Returns:
-            list[list[str]]: The batched lines.
-        """
-        word_dict = {}
-        input_tokens_info = []
-        output_tokens_info = []
-        for input_line_id, input_line in enumerate(input_lines):
-            for word in input_line.split():
-                input_tokens_info.append(LCSTokenInfo(
-                    chr(offset + word_dict.setdefault(word, len(word_dict))),
+    Returns:
+        list[list[str]]: The batched lines.
+    """
+    word_dict = {}
+    input_tokens_info = []
+    output_tokens_info = []
+    for input_line_id, input_line in enumerate(input_lines):
+        for word in input_line.split():
+            input_tokens_info.append(LCSTokenInfo(
+                chr(offset + word_dict.setdefault(word, len(word_dict))),
+                len(word),
+                input_line_id,
+                ))
+    
+    for output_line_id, output_line in enumerate(output_lines):
+        for word in output_line.split():
+            if word in word_dict: # 为子序列写的优化
+                output_tokens_info.append(LCSTokenInfo(
+                    chr(offset + word_dict[word]),
                     len(word),
-                    input_line_id,
+                    output_line_id,
                     ))
-        
-        for output_line_id, output_line in enumerate(output_lines):
-            for word in output_line.split():
-                if word in word_dict: # 为子序列写的优化
-                    output_tokens_info.append(LCSTokenInfo(
-                        chr(offset + word_dict[word]),
-                        len(word),
-                        output_line_id,
-                        ))
-        return input_tokens_info, output_tokens_info
+    return input_tokens_info, output_tokens_info
 
 def tokenize_by_char(input_lines: list[str], output_lines: list[str], offset=0) -> Tuple[list[LCSTokenInfo], list[LCSTokenInfo]]:
-        """
-        """
-        char_set = set(chain(*input_lines))
-        input_tokens_info = []
-        output_tokens_info = []
-        for input_line_id, input_line in enumerate(input_lines):
-            for char in input_line:
-                input_tokens_info.append(LCSTokenInfo(
+    """
+    """
+    char_set = set(chain(*input_lines))
+    input_tokens_info = []
+    output_tokens_info = []
+    for input_line_id, input_line in enumerate(input_lines):
+        for char in input_line:
+            input_tokens_info.append(LCSTokenInfo(
+                char,
+                1,
+                input_line_id,
+                ))
+    
+    for output_line_id, output_line in enumerate(output_lines):
+        for char in output_line:
+            if char in char_set: # 为子序列写的优化
+                output_tokens_info.append(LCSTokenInfo(
                     char,
                     1,
-                    input_line_id,
+                    output_line_id,
                     ))
-        
-        for output_line_id, output_line in enumerate(output_lines):
-            for char in output_line:
-                if char in char_set: # 为子序列写的优化
-                    output_tokens_info.append(LCSTokenInfo(
-                        char,
-                        1,
-                        output_line_id,
-                        ))
-        return input_tokens_info, output_tokens_info
+    return input_tokens_info, output_tokens_info
 
 def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], drop_th=DROP_THRESHOLD, tokenizer=tokenize_by_space_splited_word) -> Tuple[dict[int, Tuple[int, int]], list[float], list[float]]:
     """
@@ -147,8 +147,6 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
         output_hit_rate[p] /= sum(map(len, output_lines[p].split())) + 1e-3
 
     # 额外处理：匹配率低于drop_th的olineid不要
-    print(align_map)
-    print('orate', output_hit_rate)
     for p, i in enumerate(output_hit_rate):
         if i < drop_th:
             if p in align_map:
@@ -158,60 +156,9 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
 
 
 use_proxy()
-import torch
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-TRANSLATOR_MODEL_NAME = f"Helsinki-NLP/opus-mt-en-zh"
-TRANSLATOR_TOKENIZER = None
-TRANSLATOR_MODEL = None
-def _ensure_translate_model():
-    global TRANSLATOR_TOKENIZER, TRANSLATOR_MODEL
-    if TRANSLATOR_TOKENIZER is None:
-        TRANSLATOR_TOKENIZER = AutoTokenizer.from_pretrained(TRANSLATOR_MODEL_NAME)
-        TRANSLATOR_MODEL = AutoModelForSeq2SeqLM.from_pretrained(TRANSLATOR_MODEL_NAME).cuda()
 
-def _tokenize(input_text: str) -> torch.Tensor:
-    return TRANSLATOR_TOKENIZER(input_text, return_tensors="pt")
 
-def _translate(input_tokens: torch.Tensor) -> str:
-    """翻译英文文本为中文文本"""
-    with torch.no_grad():
-        output = TRANSLATOR_MODEL.generate(**input_tokens.to('cuda'))
-    translated_text = TRANSLATOR_TOKENIZER.decode(output[0], skip_special_tokens=True)
-    return translated_text
-
-def translate(en: str | list[str]) -> list[str]:
-    """翻译英文段落为中文段落"""
-    if isinstance(en, str):
-        en = en.splitlines()
-    translated = []
-    for paragraph in en:
-        paragraph_translation = []
-        words = paragraph.split()
-        while words:
-            rptr = min(len(words), 512) # token数必须确定句子才能确定，所以这里用512作为上限，用二分法（更像是二进制指数退避？）找到最大能用的token数
-            tokens = _tokenize(' '.join(words[:rptr]))
-            if tokens.input_ids.shape[1] > 512:
-                lptr = 1 # 以1为界保证递增
-                while lptr < rptr - 1:
-                    mid = (lptr + rptr) // 2
-                    test_tokens = _tokenize(' '.join(words[:mid]))
-                    if test_tokens.input_ids.shape[1] > 512:
-                        rptr = mid
-                    else:
-                        lptr = mid
-                        tokens = test_tokens
-                        break # 实际上我们不需要找到边界，拿一段出来能够翻译的就行了
-            else:
-                lptr = rptr
-            if tokens.input_ids.shape[1] > 512:
-                raise RuntimeError("Algorithm error")
-            paragraph_translation.append(_translate(tokens))
-            words = words[lptr:]
-        translated.append(''.join(paragraph_translation))
-    return translated
-    
-
-def align(en: str | list[str], zh: str | list[str], en_translated: str | list[str] = None) -> Tuple[list[Tuple[str, str]], list[str], str]:
+def align(en: str | list[str], zh: str | list[str], en_translated: str | list[str]) -> Tuple[list[Tuple[str, str]], list[str], str]:
     """
     1:n对齐，en为主文本(1)，zh为次文本(n)，en_translated为en的翻译文本。
     Args:
@@ -230,16 +177,11 @@ def align(en: str | list[str], zh: str | list[str], en_translated: str | list[st
     if isinstance(en_translated, str):
         en_translated = en_translated.splitlines()
 
-    if not en_translated:
-        en_translated = translate(en)
-
     aligned = []
     dropped = []
 
     align_map, irate, orate = lcs_sequence_alignment(zh, en_translated, DROP_THRESHOLD, tokenize_by_char)
     # irate表示中文原文本对齐命中率，orate表示英翻中文本对齐命中率
-    # print(irate) # 这两个变量仅用于诊断，这里用print输出而不是打日志
-    # print(orate)
     for paragraph_id, (line_id_lowerbound, line_id_upperbound) in align_map.items():
         aligned.append(':'.join([
             str(paragraph_id), # 源语言
@@ -258,7 +200,7 @@ def align(en: str | list[str], zh: str | list[str], en_translated: str | list[st
                 preview_text.append(zh[zh_ptr])
                 preview_text.append("")
                 dropped.append(':'.join([
-                    '0', 
+                    '1', 
                     str(zh_ptr), 
                     # zh[zh_ptr],
                 ]))
@@ -274,22 +216,20 @@ def align(en: str | list[str], zh: str | list[str], en_translated: str | list[st
             preview_text.append(paragraph)
             preview_text.append("")
             dropped.append(':'.join([
-                '1',
+                '0',
                 str(paragraph_id), 
                 # paragraph,
             ]))
     
     return aligned, dropped, '\n'.join(preview_text)
 
-OUTDIR = Path(r'F:\new_out')
-SAVEDIR = Path(r'F:\align_testset')
 
 def map_func(row):
     last_time = datetime.datetime.now()
     rec = row['record']
     zh = row['clean_zh']
     en = row['clean_en']
-    tr_en = row['translation'].split('\n\n')
+    tr_en = row['en2zh']
     aligned, dropped, preview = align(en, zh, tr_en)
     with (OUTDIR / (rec + '_en2zh.txt')).open('w', encoding='utf-8') as f:
         f.write(preview)
@@ -299,16 +239,25 @@ def map_func(row):
     print(rec, dropped, ima - last_time)
     return row
 
+def gen(src = Path(r'F:\undl_en2zh_10')):
+    for son in os.listdir(src):
+        ds = datasets.load_from_disk(src / son)
+        ds = ds.map(map_func)
+        yield from ds
+
+
 def read_secret(key: str) -> str:
     v = os.environ[key] = os.environ.get(key) or input(f"Please input {key}:")    
     return v
 
+OUTDIR = Path(r'F:\new_out')
+SAVEDIR = Path(r'F:\align_testset')
 if __name__ == '__main__':
-    SOURCE_DIR = r'F:\translated_doc'
     OUTDIR.mkdir(exist_ok=True)
     SAVEDIR.mkdir(exist_ok=True)
-    ds = datasets.load_from_disk(SOURCE_DIR)
-    dds = ds.map(map_func)
-    dds.save_to_disk(SAVEDIR)
+    # ds = datasets.Dataset.from_generator(gen)
+    # dds = ds.map(map_func)
+    # ds.save_to_disk(SAVEDIR)
+    ds = datasets.load_from_disk(SAVEDIR)
     # use_proxy()
-    # dds.push_to_hub(repo_id='undl_align', split='test', token=read_secret('HF_TOKEN'))
+    ds.push_to_hub(repo_id='undl_align_10', split='train', token=read_secret('HF_TOKEN'))
