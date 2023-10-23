@@ -7,7 +7,6 @@ def install_translator():
     # 经测试开系统代理下包可行
     installed = argostranslate.package.get_installed_packages()
     print(installed)
-
     argostranslate.package.update_package_index()
     available_packages = argostranslate.package.get_available_packages()
     print(available_packages)
