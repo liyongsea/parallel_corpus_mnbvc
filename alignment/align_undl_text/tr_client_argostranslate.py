@@ -5,7 +5,7 @@ import argostranslate.translate
 import os
 import requests
 
-API = 'http://localhost:29999'
+API = 'http://4kr.top:7099'
 
 def translate(text: List[str]):
     translation = []
@@ -23,15 +23,26 @@ def translate(text: List[str]):
 if __name__ == '__main__':
     # os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
     while 1:
-        task = requests.get(API).json()
+        while 1:
+            try:
+                task = requests.get(API).json()
+                break
+            except Exception as e:
+                print(e)
+        
         print('got', task['taskid'])
         buf = []
         for tid, text in enumerate(task['data']):
             print(tid, len(text))
             buf.append(translate(text))
         # print(buf)
-        requests.post(API + '/upl', json={
-            'taskid': task['taskid'],
-            'client': 'argostranslate',
-            'out': buf
-        })
+        while 1:
+            try:
+                requests.post(API + '/upl', json={
+                    'taskid': task['taskid'],
+                    'client': 'argostranslate',
+                    'out': buf
+                })
+                break
+            except Exception as e:
+                print(e)
