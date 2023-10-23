@@ -1,4 +1,3 @@
-sudo su
 apt install -y python3-pip python3-full
 python3 -m venv MT
 cd MT
