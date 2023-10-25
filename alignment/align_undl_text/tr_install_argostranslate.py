@@ -1,7 +1,8 @@
 import argostranslate.package
 import argostranslate.translate
 
-NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
+# NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
+NEED_TARGETS = ('zh',)
 
 def install_translator():
     # 经测试开系统代理下包可行
