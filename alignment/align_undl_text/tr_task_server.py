@@ -28,8 +28,8 @@ def get_outputs():
 app = FastAPI(redoc_url=None, docs_url=None, swagger_ui_init_oauth=None, openapi_url=None)
 app.add_middleware(GZipMiddleware)
 
-pending = {}
-todo = set()
+# pending = {}
+todo = []
 
 STEP = 10
 SRC = 'en'
@@ -43,9 +43,9 @@ for i in range(0, len(DS), STEP):
             done = True
             break
     if not done:
-        todo.add(i)
+        todo.append(i)
 
-print('todo:', len(todo), len(pending))
+print('todo:', len(todo))
 
 class UplBody(BaseModel):
     taskid: int
@@ -55,19 +55,28 @@ class UplBody(BaseModel):
 @app.post('/upl')
 async def task_submit(body: UplBody):
     outs = get_outputs()
-    if body.taskid not in pending:
-        raise HTTPException(400, 'taskid not found')
+    # if body.taskid not in pending:
+        # raise HTTPException(400, 'taskid not found')
     if body.client not in outs:
         raise HTTPException(400, 'client not found')
     client_dir = (BASE_DIR / outs[body.client])
     client_dir.mkdir(parents=True, exist_ok=True)
-    shard = pending.pop(body.taskid)
+    # shard = pending.pop(body.taskid)
     out_path = client_dir / str(body.taskid)
     if out_path.exists():
         raise HTTPException(400, 'taskid already exists')
     # print(len(body.out), body.out)
-    shard.add_column(f'{SRC}2{DST}', body.out)
-    shard.save_to_disk(out_path)
+    # shard.add_column(f'{SRC}2{DST}', body.out)
+    out_path.mkdir()
+    with (out_path / 'dup.pkl').open('wb') as f:
+        f.write(pickle.dumps(body.out))
+    with (out_path / 'preview.txt').open('w', encoding='utf-8') as f:
+        buf = []
+        for i in body.out:
+            buf.append('\n\n'.join(i))
+        f.write('\n==========\n'.join(buf))
+
+    # shard.save_to_disk(out_path)
     return 1
 
 @app.get('/')
@@ -83,7 +92,6 @@ async def task_getter():
         else:
             x.append(i[f'clean_{SRC}'])
 
-    pending[cur] = data
     return {
         'taskid': cur,
         'src': SRC,
