@@ -16,10 +16,16 @@ from pathlib import Path
 from pydantic import BaseModel
 from load_and_translate import clean_paragraph
 
+STEP = 10
+SRC = 'fr'
+DST = 'en'
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
+TASK_DEST = BASE_DIR / f"{SRC}2{DST}"
 DS = datasets.load_from_disk(TASK_SOURCE)
 OUTPUT_MANIFEST = r'C:\Users\Administrator\Desktop\lj\alignment\align_undl_text\client_map.txt'
+
+TASK_DEST.mkdir(exist_ok=True)
 
 def get_outputs():
     with open(OUTPUT_MANIFEST, 'r', encoding='utf-8') as f:
@@ -31,15 +37,12 @@ app.add_middleware(GZipMiddleware)
 # pending = {}
 todo = []
 
-STEP = 10
-SRC = 'en'
-DST = 'zh'
 
 outs = get_outputs()
 for i in range(0, len(DS), STEP):
     done = False
     for j in outs.values():
-        if (BASE_DIR / j / str(i)).exists():
+        if (TASK_DEST / j / str(i)).exists():
             done = True
             break
     if not done:
@@ -59,7 +62,7 @@ async def task_submit(body: UplBody):
         # raise HTTPException(400, 'taskid not found')
     if body.client not in outs:
         raise HTTPException(400, 'client not found')
-    client_dir = (BASE_DIR / outs[body.client])
+    client_dir = (TASK_DEST / outs[body.client])
     client_dir.mkdir(parents=True, exist_ok=True)
     # shard = pending.pop(body.taskid)
     out_path = client_dir / str(body.taskid)
