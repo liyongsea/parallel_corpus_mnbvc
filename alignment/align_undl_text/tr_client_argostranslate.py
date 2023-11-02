@@ -61,7 +61,7 @@ if __name__ == '__main__':
         for tid, text in enumerate(task['data']):
             begin = datetime.now()
             buf.append(translate(text, src, dst))
-            print(tid, len(text), 'seconds per line:', (datetime.now() - begin).total_seconds() / len(text))
+            print(tid, len(text), 'seconds per line:', (datetime.now() - begin).total_seconds() / (len(text) + 1e-3))
         # print(buf)
         while 1:
             try:
