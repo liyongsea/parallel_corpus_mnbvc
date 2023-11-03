@@ -1,43 +1,46 @@
 from datetime import datetime
 from typing import List
 import re
-import argostranslate.package
 import argostranslate.translate
+import argostranslate.package
+
 import time
 import requests
 
 API = 'http://4kr.top:7098'
 # API = 'http://127.0.0.1:29999'
-INSTALLED = set()
+INSTALLED = {}
 # NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 
-def install_translator(_from = 'fr', _to = 'en'):
-    if (_from, _to) in INSTALLED:
-        return
+def get_or_install_translator(_from = 'fr', _to = 'en'):
+    if tr := INSTALLED.get((_from, _to), None):
+        return tr
+    try:
+        tr = argostranslate.translate.get_translation_from_codes(_from, _to)
+        INSTALLED[(_from, _to)] = tr
+        return tr
+    except Exception as e:
+        print(e, 'attemp to install...')
     # 经测试开系统代理下包可行
-    installed = argostranslate.package.get_installed_packages()
+    # installed = argostranslate.package.get_installed_packages()
     # print(installed)
     argostranslate.package.update_package_index()
     available_packages = argostranslate.package.get_available_packages()
     # print(available_packages)
     for i in filter(lambda x: x.from_code == _from and x.to_code == _to, available_packages):
-        if i in installed:
-            # print('skip', i)
-            INSTALLED.add((_from, _to))
-            continue
-
         print('install', i)
         i.install()
-        INSTALLED.add((_from, _to))
+    INSTALLED[(_from, _to)] = argostranslate.translate.get_translation_from_codes(_from, _to)
+    return INSTALLED[(_from, _to)]
 
-def translate(text: List[str], src, dst):
+def translate(text: List[str], tr):
     translation = []
     for para in text:
         if not re.search('[A-Za-z]+', para):
             translation.append(para)
         else:
             try:
-                translation.append(argostranslate.translate.translate(para, src, dst))
+                translation.append(tr.translate(para))
             except Exception as e:
                 print(e)
                 translation.append(para)
@@ -56,11 +59,11 @@ if __name__ == '__main__':
                 time.sleep(5)
         print('got', task['taskid'])
         src, dst = task['src'], task['dst']
-        install_translator(src, dst)
+        tr = get_or_install_translator(src, dst)
         buf = []
         for tid, text in enumerate(task['data']):
             begin = datetime.now()
-            buf.append(translate(text, src, dst))
+            buf.append(translate(text, tr))
             print(tid, len(text), 'seconds per line:', (datetime.now() - begin).total_seconds() / (len(text) + 1e-3))
         # print(buf)
         while 1:
