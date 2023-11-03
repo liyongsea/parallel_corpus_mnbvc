@@ -1,6 +1,7 @@
 import re
 import os
 import pickle
+import shutil
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.requests import Request
@@ -34,17 +35,22 @@ def get_outputs():
 app = FastAPI(redoc_url=None, docs_url=None, swagger_ui_init_oauth=None, openapi_url=None)
 app.add_middleware(GZipMiddleware)
 
-# pending = {}
 todo = []
-
 
 outs = get_outputs()
 for i in range(0, len(DS), STEP):
     done = False
     for j in outs.values():
-        if (TASK_DEST / j / str(i)).exists():
-            done = True
-            break
+        task_path = TASK_DEST / j / str(i)
+        if task_path.exists():
+            with open(task_path / 'dup.pkl', 'rb') as f:
+                tr = pickle.load(f)
+            if any(tr):
+                done = True
+                break
+            else:
+                print('remove empty task', task_path)
+                shutil.rmtree(task_path)
     if not done:
         todo.append(i)
 
@@ -72,7 +78,7 @@ async def task_submit(body: UplBody):
     # shard.add_column(f'{SRC}2{DST}', body.out)
     out_path.mkdir()
     with (out_path / 'dup.pkl').open('wb') as f:
-        f.write(pickle.dumps(body.out))
+        pickle.dump(body.out, f)
     with (out_path / 'preview.txt').open('w', encoding='utf-8') as f:
         buf = []
         for i in body.out:
