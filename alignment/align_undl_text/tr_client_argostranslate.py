@@ -1,3 +1,5 @@
+# import os
+# os.environ['ARGOS_DEVICE_TYPE'] = 'cuda' # 如果使用cuda取消注释这两行
 from datetime import datetime
 from typing import List
 import re
@@ -20,7 +22,7 @@ def get_or_install_translator(_from = 'fr', _to = 'en'):
         INSTALLED[(_from, _to)] = tr
         return tr
     except Exception as e:
-        print(e, 'attemp to install...')
+        print(e, '\nattempt to install package...')
     # 经测试开系统代理下包可行
     # installed = argostranslate.package.get_installed_packages()
     # print(installed)
@@ -44,7 +46,6 @@ def translate(text: List[str], tr):
 
 if __name__ == '__main__':
     allow_compress = {'accept-encoding':'gzip, deflate, br'}
-    # os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
     while 1:
         while 1:
             try:
