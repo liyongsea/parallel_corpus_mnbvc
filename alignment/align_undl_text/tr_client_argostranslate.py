@@ -39,11 +39,7 @@ def translate(text: List[str], tr):
         if not re.search('[A-Za-z]+', para):
             translation.append(para)
         else:
-            try:
-                translation.append(tr.translate(para))
-            except Exception as e:
-                print(e)
-                translation.append(para)
+            translation.append(tr.translate(para))
     return translation
 
 if __name__ == '__main__':
