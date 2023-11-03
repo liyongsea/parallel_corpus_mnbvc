@@ -37,7 +37,7 @@ def translate(text: List[str], tr):
     translation = []
     for para in text:
         if not re.search('[A-Za-z]+', para):
-            translation.append(para)
+            translation.append(para.replace('\n', ' '))
         else:
             translation.append(tr.translate(para))
     return translation
