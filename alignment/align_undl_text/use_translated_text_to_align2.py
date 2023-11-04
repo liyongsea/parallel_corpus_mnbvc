@@ -227,9 +227,6 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
     return set2set
 
 
-use_proxy()
-
-
 def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[str]) -> Tuple[list[Tuple[str, str]], list[str], str]:
     """
     1:n对齐，en为主文本(1)，zh为次文本(n)，en_translated为en的翻译文本。
@@ -255,7 +252,7 @@ def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[s
 
     ivis = set()
     ovis = set()
-    set2set = lcs_sequence_alignment(olang, ilang_tr, DROP_THRESHOLD, tokenizer=tokenize_by_jieba)
+    set2set = lcs_sequence_alignment(olang, ilang_tr, DROP_THRESHOLD, tokenizer=tokenize_by_space_splited_word)
     set2set.sort(key=lambda x: x[0][0])
     for oset, iset in set2set:
         aligned.append(','.join(map(str, iset)) + '|' + ','.join(map(str, oset)))
@@ -295,11 +292,11 @@ def map_func(ds):
     li = []
     for row in ds:
         rec = row['record']
-        zh = row['clean_zh']
-        en = row['clean_en']
-        tr_en = row['en2zh']
-        aligned, pairs, preview = align(en, zh, tr_en)
-        with (OUTDIR / (rec + '_en2zh.txt')).open('w', encoding='utf-8') as f:
+        src = row[f'clean_{SRC}']
+        dst = row[f'clean_{DST}']
+        tr = row[f'{SRC}2{DST}']
+        aligned, pairs, preview = align(src, dst, tr)
+        with (OUTDIR / (rec + '.txt')).open('w', encoding='utf-8') as f:
             f.write(preview)
         for apairs, atext in zip(aligned, pairs):
             i, o = atext
@@ -313,12 +310,12 @@ import pickle
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
 DS = datasets.load_from_disk(TASK_SOURCE)
-SRC = 'en'
-DST = 'zh'
+SRC = 'fr'
+DST = 'en'
 STEP = 10
 
 def gen_dump_translated_text():
-    srcs = (Path(r'F:\undl_en2zh_v2'), )
+    srcs = (Path(rf'F:\{SRC}2{DST}\argos'), )
     for src in srcs:
         for son in os.listdir(src):
             sid = int(son)
@@ -335,20 +332,19 @@ def read_secret(key: str) -> str:
     v = os.environ[key] = os.environ.get(key) or input(f"Please input {key}:")    
     return v
 
-OUTDIR = Path(r'F:\new_out2')
-SAVEDIR = Path(r'F:\align_testset')
-DUMP_TRANSLATION_PATH = Path(r'F:\dump_tr')
-METHOD2_PREVIEW_DS_PATH = Path(r'F:\method2_ds')
+OUTDIR = Path(rf'F:\new_out2_{SRC}2{DST}')
+DUMP_TRANSLATION_PATH = Path(rf'F:\dump_tr_{SRC}2{DST}')
+METHOD2_PREVIEW_DS_PATH = Path(rf'F:\method2_ds_{SRC}2{DST}')
 
 if __name__ == '__main__':
     OUTDIR.mkdir(exist_ok=True)
-    SAVEDIR.mkdir(exist_ok=True)
     DUMP_TRANSLATION_PATH.mkdir(exist_ok=True)
     METHOD2_PREVIEW_DS_PATH.mkdir(exist_ok=True)
-
-    ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
+    ds = datasets.Dataset.from_generator(gen_dump_translated_text)
+    ds.save_to_disk(DUMP_TRANSLATION_PATH)
+    # ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
     ds = datasets.Dataset.from_list(map_func(ds))
     ds.save_to_disk(METHOD2_PREVIEW_DS_PATH)
-    use_proxy()
-    ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
+    # use_proxy()
+    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
 
