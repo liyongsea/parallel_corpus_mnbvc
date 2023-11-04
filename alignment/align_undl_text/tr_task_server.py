@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from load_and_translate import clean_paragraph
 
 STEP = 10
-SRC = 'fr'
+SRC = 'ru'
 DST = 'en'
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
@@ -49,8 +49,8 @@ for i in range(0, len(DS), STEP):
                 done = True
                 break
             else:
-                print('remove empty task', task_path)
-                shutil.rmtree(task_path)
+                print('detected empty task', task_path)
+                # shutil.rmtree(task_path)
     if not done:
         todo.append(i)
 
@@ -59,6 +59,8 @@ print('todo:', len(todo))
 class UplBody(BaseModel):
     taskid: int
     client: str
+    src: str
+    dst: str
     out: List[List[str]]
 
 @app.post('/upl')
@@ -68,6 +70,8 @@ async def task_submit(body: UplBody):
         # raise HTTPException(400, 'taskid not found')
     if body.client not in outs:
         raise HTTPException(400, 'client not found')
+    if body.src != SRC or body.dst != DST:
+        raise HTTPException(400, 'src or dst not match')
     client_dir = (TASK_DEST / outs[body.client])
     client_dir.mkdir(parents=True, exist_ok=True)
     # shard = pending.pop(body.taskid)
@@ -84,7 +88,11 @@ async def task_submit(body: UplBody):
         for i in body.out:
             buf.append('\n\n'.join(i))
         f.write('\n==========\n'.join(buf))
-
+    # try:
+    #     todo.remove(body.taskid)
+    #     print('remove from todo', body.taskid)
+    # except:
+    #     pass
     # shard.save_to_disk(out_path)
     return 1
 

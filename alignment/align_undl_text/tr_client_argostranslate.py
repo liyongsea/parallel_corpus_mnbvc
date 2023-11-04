@@ -9,7 +9,7 @@ import argostranslate.package
 import time
 import requests
 
-API = 'http://4kr.top:7098'
+API = 'http://4kr.top:7097'
 # API = 'http://127.0.0.1:29999'
 INSTALLED = {}
 # NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
@@ -38,10 +38,7 @@ def get_or_install_translator(_from = 'fr', _to = 'en'):
 def translate(text: List[str], tr):
     translation = []
     for para in text:
-        if not re.search('[A-Za-z]+', para):
-            translation.append(para.replace('\n', ' '))
-        else:
-            translation.append(tr.translate(para))
+        translation.append(tr.translate(para.replace('\n', ' ')))
     return translation
 
 if __name__ == '__main__':
@@ -68,6 +65,8 @@ if __name__ == '__main__':
                 requests.post(API + '/upl', json={
                     'taskid': task['taskid'],
                     'client': 'argostranslate',
+                    'src': src,
+                    'dst': dst,
                     'out': buf
                 }, headers=allow_compress)
                 break
