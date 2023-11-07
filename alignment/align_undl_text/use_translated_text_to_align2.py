@@ -1,6 +1,7 @@
 import datetime
 import os
 from pathlib import Path
+import shutil
 import datasets
 from collections import namedtuple
 from typing import Tuple
@@ -246,6 +247,9 @@ def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[s
     if isinstance(ilang_tr, str):
         ilang_tr = ilang_tr.splitlines()
 
+    if len(ilang) != len(ilang_tr):
+        assert len(ilang) == len(ilang_tr), f"len inequal, {len(ilang)}, {len(ilang_tr)}"
+
     aligned = []
     aligned_pairs = []
     preview_text = []
@@ -290,17 +294,18 @@ def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[s
 # c2 = 0
 def map_func(ds):
     li = []
-    for row in ds:
+    for rid, row in enumerate(ds):
         rec = row['record']
         src = row[f'clean_{SRC}']
         dst = row[f'clean_{DST}']
         tr = row[f'{SRC}2{DST}']
-        aligned, pairs, preview = align(src, dst, tr)
-        with (OUTDIR / (rec + '.txt')).open('w', encoding='utf-8') as f:
-            f.write(preview)
-        for apairs, atext in zip(aligned, pairs):
-            i, o = atext
-            li.append({'record': rec, 'clean_para_index_set_pair': apairs, 'src': SRC, 'dst': DST, 'src_text': i, 'dst_text': o})
+        if src and dst:
+            aligned, pairs, preview = align(src, dst, tr)
+            with (OUTDIR / (rec + '.txt')).open('w', encoding='utf-8') as f:
+                f.write(preview)
+            for apairs, atext in zip(aligned, pairs):
+                i, o = atext
+                li.append({'record': rec, 'clean_para_index_set_pair': apairs, 'src': SRC, 'dst': DST, 'src_text': i, 'dst_text': o})
     return li
 
 from load_and_translate import clean_paragraph
@@ -310,22 +315,35 @@ import pickle
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
 DS = datasets.load_from_disk(TASK_SOURCE)
-SRC = 'fr'
+SRC = 'de'
 DST = 'en'
 STEP = 10
 
 def gen_dump_translated_text():
     srcs = (Path(rf'F:\{SRC}2{DST}\argos'), )
     for src in srcs:
-        for son in os.listdir(src):
+        for son in list(os.listdir(src)):
             sid = int(son)
             data = DS.select(range(sid, sid + STEP))
             data = data.map(lambda x: {f'clean_{SRC}': list(filter(bool, (clean_paragraph(para) for para in re.split('\n\n', x[SRC]))))})
             data = data.map(lambda x: {f'clean_{DST}': list(filter(bool, (clean_paragraph(para) for para in re.split('\n\n', x[DST]))))})
             with open(src / son / 'dup.pkl', 'rb') as f:
-                tr = pickle.loads(f.read())
+                tr = pickle.load(f)
             for i, dt in enumerate(data):
-                yield {f'clean_{SRC}': dt[f'clean_{SRC}'], f'clean_{DST}': dt[f'clean_{DST}'], 'record': dt['record'], f'{SRC}2{DST}': tr[i]}
+                if not any(dt[f'clean_{SRC}']) or not any(dt[f'clean_{DST}']):
+                    # x.append([])
+                    if 0 != len(tr[i]):
+                        print(sid, i, f"unexpected translation, {len(dt[f'clean_{SRC}'])}, {len(dt[f'clean_{DST}'])}, {len(tr[i])}")
+                        shutil.rmtree(src / son)
+                        break
+                    yield {f'clean_{SRC}': [], f'clean_{DST}': [], 'record': dt['record'], f'{SRC}2{DST}': tr[i]}
+                else:
+                    # x.append(i[f'clean_{SRC}'])
+                    if len(dt[f'clean_{SRC}']) != len(tr[i]):
+                        print(sid, i, f"len inequal, {len(dt[f'clean_{SRC}'])}, {len(tr[i])}")
+                        shutil.rmtree(src / son)
+                        break
+                    yield {f'clean_{SRC}': dt[f'clean_{SRC}'], f'clean_{DST}': dt[f'clean_{DST}'], 'record': dt['record'], f'{SRC}2{DST}': tr[i]}
 
 
 def read_secret(key: str) -> str:
@@ -340,9 +358,9 @@ if __name__ == '__main__':
     OUTDIR.mkdir(exist_ok=True)
     DUMP_TRANSLATION_PATH.mkdir(exist_ok=True)
     METHOD2_PREVIEW_DS_PATH.mkdir(exist_ok=True)
-    ds = datasets.Dataset.from_generator(gen_dump_translated_text)
-    ds.save_to_disk(DUMP_TRANSLATION_PATH)
-    # ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
+    # ds = datasets.Dataset.from_generator(gen_dump_translated_text)
+    # ds.save_to_disk(DUMP_TRANSLATION_PATH)
+    ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
     ds = datasets.Dataset.from_list(map_func(ds))
     ds.save_to_disk(METHOD2_PREVIEW_DS_PATH)
     # use_proxy()
