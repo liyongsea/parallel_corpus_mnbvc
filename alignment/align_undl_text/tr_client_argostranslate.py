@@ -1,5 +1,5 @@
-# import os
-# os.environ['ARGOS_DEVICE_TYPE'] = 'cuda' # 如果使用cuda取消注释这两行
+import os
+os.environ['ARGOS_DEVICE_TYPE'] = 'cuda' # 如果使用cuda取消注释这两行
 from datetime import datetime
 from typing import List
 import re
@@ -9,8 +9,8 @@ import argostranslate.package
 import time
 import requests
 
-API = 'http://4kr.top:7097'
-# API = 'http://127.0.0.1:29999'
+# API = 'http://4kr.top:7097'
+API = 'http://127.0.0.1:29999'
 INSTALLED = {}
 # NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 
@@ -46,7 +46,7 @@ if __name__ == '__main__':
     while 1:
         while 1:
             try:
-                task = requests.get(API, headers=allow_compress).json()
+                task = requests.get(API, headers=allow_compress, timeout=30).json()
                 break
             except Exception as e:
                 print(e)
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                     'src': src,
                     'dst': dst,
                     'out': buf
-                }, headers=allow_compress)
+                }, headers=allow_compress, timeout=30)
                 break
             except Exception as e:
                 print(e)
