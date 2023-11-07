@@ -9,8 +9,8 @@ import argostranslate.package
 import time
 import requests
 
-# API = 'http://4kr.top:7097'
-API = 'http://127.0.0.1:29999'
+API = 'http://4kr.top:7097'
+# API = 'http://127.0.0.1:29999'
 INSTALLED = {}
 # NEED_TARGETS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 
