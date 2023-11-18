@@ -1,5 +1,7 @@
 import re
 import shutil
+import time
+import string
 import datasets
 from pathlib import Path
 import pickle
@@ -18,7 +20,7 @@ FIXDOCX = BASE_DIR / 'fixdocx'
 FIXDOCX_SOURCEDOC = FIXDOCX / 'doc'
 FIXDOCX_DSTDOCX = FIXDOCX / 'docx'
 
-IS_ALL_THIS_LANG = {
+ALL_THIS_LANG_PAT = {
     # \u0621-\u064A\u0660-\u0669
     # 除中文外，句子中都含空格
     'ar': re.compile(r'[\u0600-\u06ff]'),
@@ -30,7 +32,7 @@ IS_ALL_THIS_LANG = {
     'de': re.compile(r'[ÄäÖöÜüß]'),
 }
 
-THIS_LANG_TH = {
+ALL_THIS_LANG_TH = {
     # \u0621-\u064A\u0660-\u0669
     # 除中文外，句子中都含空格
     'ar': 0.2,
@@ -39,6 +41,30 @@ THIS_LANG_TH = {
     'es': 0.1,
     'ru': 0.2,
     'de': 0.1,
+}
+
+LANG_OCC_PAT = {
+    # \u0621-\u064A\u0660-\u0669
+    # 除中文外，句子中都含空格
+    'ar': re.compile('[' + re.escape(string.punctuation) + r'\s\u0600-\u06ff\w]'),
+    'zh': re.compile('[' + re.escape(string.punctuation) + r'\s\w\u3006\u3007\u4e00-\u9fff\u3400-\u4dbf\U00020000-\U0002a6df\U0002a700-\U0002ebef\U00030000-\U0003134f]'),
+    'fr': re.compile('[' + re.escape(string.punctuation) + r'\s\wÀ-Ÿ]'),
+    'es': re.compile('[' + re.escape(string.punctuation) + r'\s\wáéíóúñÁÉÍÓÚÑüÜ]'),
+    'ru': re.compile('[' + re.escape(string.punctuation) + r'\s\wА-Яа-яЁёъь]'),
+    'en': re.compile('[' + re.escape(string.punctuation) + r'\s\w]'),
+    'de': re.compile('[' + re.escape(string.punctuation) + r'\s\wÄäÖöÜüß]'),
+}
+
+LANG_OCC_TH = {
+    # \u0621-\u064A\u0660-\u0669
+    # 除中文外，句子中都含空格
+    'ar': 0.6,
+    'zh': 0.6,
+    'fr': 0.8,
+    'es': 0.8,
+    'ru': 0.8,
+    'de': 0.8,
+    'en': 0.8,
 }
 
 lang_map = {
@@ -54,26 +80,38 @@ lang_map = {
 stat = []
 stattxt = []
 
-def map_func(row):
-    for k, _ in IS_ALL_THIS_LANG.items():
-        for lang, pat in IS_ALL_THIS_LANG.items():
+def detect_other_lang(row):
+    for k, _ in ALL_THIS_LANG_PAT.items():
+        for lang, pat in ALL_THIS_LANG_PAT.items():
             if lang == k or lang == 'en':
                 continue
             a = pat.findall(row[k])
             rate = len(a) / (len(row[k]) + 1e-3)
-            if rate > THIS_LANG_TH[lang]:
+            if rate > ALL_THIS_LANG_TH[lang]:
                 r = (row['record'], k, lang, rate)
                 print(r)
                 stat.append(r)
                 stattxt.append(' '.join(map(str, r)))
                 break
 
+def check_this_lang_rate(row):
+    for k, pat in LANG_OCC_PAT.items():
+        a = pat.findall(row[k])
+        rate = len(a) / (len(row[k]) + 1e-3)
+        if rate < LANG_OCC_TH[k]:
+            r = (row['record'], k, k, rate)
+            print(r)
+            stat.append(r)
+            stattxt.append(' '.join(map(str, r)))
+            break
+
 def get_error_text():
-    DS.map(map_func)
+    # DS.map(detect_other_lang)
+    DS.map(check_this_lang_rate)
     with open(OUTSTAT, 'wb') as f:
         pickle.dump(stat, f)
     with open(OUTSTATTXT, 'w') as f:
-        f.write('\n'.join(stattxt))
+        f.write('\n'.join(sorted(stattxt)))
 
 sufpat = re.compile(r'\.[a-zA-Z]+$')
 
@@ -156,8 +194,69 @@ def scan_pdf():
         elif typ != 'application/msword' and typ != 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             print(typ, doc)
 
+def semiauto_word_classification():
+    import pyautogui
+    import keyboard
+    # while 1:
+        # c = keyboard.read_key()
+        # print(c)
+    for i in os.listdir(FIXDOCX_SOURCEDOC):
+        print(FIXDOCX_SOURCEDOC / i)
+        os.startfile(FIXDOCX_SOURCEDOC / i)
+        while 1:
+            print('listening keys...')
+            c = keyboard.read_key()
+            if not keyboard.is_pressed(c):
+                continue
+            print(c)
+            if c == 'f12':
+                time.sleep(0.3)
+                pyautogui.hotkey('alt', 't')
+                time.sleep(0.3)
+                pyautogui.press('down')
+                pyautogui.press('up')
+                pyautogui.press('up')
+                time.sleep(0.3)
+                pyautogui.press('enter')
+                time.sleep(0.3)
+                pyautogui.hotkey('alt', 'd')
+                time.sleep(0.3)
+                pyautogui.write(r'F:\fixdocx\correct_docx')
+                time.sleep(0.3)
+                pyautogui.press('enter')
+                time.sleep(0.3)
+                pyautogui.hotkey('alt', 's')
+            elif c == 's':
+                time.sleep(0.5)
+                shutil.move(FIXDOCX_SOURCEDOC / i, FIXDOCX / 'spider_err' / i)
+                break
+            elif c == 'n':
+                time.sleep(0.5)
+                shutil.move(FIXDOCX_SOURCEDOC / i, FIXDOCX / 'no_err' / i)
+                break
+            elif c == 'c':
+                time.sleep(0.5)
+                shutil.move(FIXDOCX_SOURCEDOC / i, FIXDOCX / 'convert_err' / i)
+                break
+        # if c == 'f12':
+
+def compare_directory_files():
+    d1 = FIXDOCX / 'convert_err'
+    d2 = FIXDOCX / 'correct_docx'
+    s2 = set(map(lambda x: sufpat.sub('', x, 1), os.listdir(d2)))
+    for f in os.listdir(d1):
+        fn = sufpat.sub('', f, 1)
+        if fn not in s2:
+            print('+', f)
+        else:
+            s2.discard(fn)
+    for f in s2:
+        print('-', f)
 
 if __name__ == "__main__":
+    # get_error_text()
     # copy_err()
     # scan_pdf()
-    drop_dup()
+    # drop_dup()
+    # semiauto_word_classification()
+    compare_directory_files()
