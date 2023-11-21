@@ -20,6 +20,12 @@ FIXDOCX = BASE_DIR / 'fixdocx'
 FIXDOCX_SOURCEDOC = FIXDOCX / 'doc'
 FIXDOCX_DSTDOCX = FIXDOCX / 'docx'
 
+DOC_BASEDIR = Path(r"E:\motrixDL\baiduyun\MNBVC")
+DOC_SOURCE = DOC_BASEDIR / "MNBVC—UN文件"
+DOC_MAP = DOC_BASEDIR / "doc_mapping.pkl"
+WPF_MAP = DOC_BASEDIR / "wpf_mapping.pkl"
+REV_MAP = DOC_BASEDIR / "rev_mapping.pkl" # 文件名到文件号及语言的映射
+
 ALL_THIS_LANG_PAT = {
     # \u0621-\u064A\u0660-\u0669
     # 除中文外，句子中都含空格
@@ -77,6 +83,16 @@ lang_map = {
     'de':'德国',
 }
 
+lang_rev_map = {
+    '阿拉伯文':'ar',
+    '中文':'zh',
+    '英文':'en',
+    '法文':'fr',
+    '俄文':'ru',
+    '西班牙文':'es',
+    '德国':'de',
+}
+
 stat = []
 stattxt = []
 
@@ -115,16 +131,28 @@ def get_error_text():
 
 sufpat = re.compile(r'\.[a-zA-Z]+$')
 
+def construct_rev_index():
+    with open(DOC_MAP, 'rb') as f:
+        doc_map = pickle.load(f)
+    with open(WPF_MAP, 'rb') as f:
+        wpf_map = pickle.load(f)
+    
+    rev_map = {}
+    for mp in [doc_map, wpf_map]:
+        for rec, langs in mp.items():
+            for fi in langs:
+                lang, _ = fi.split('-')
+                iso_code = lang_rev_map[lang]
+                fjkey = sufpat.sub('', fi, 1)
+                rev_map[fjkey] = (rec, iso_code)
+    with open(REV_MAP, 'wb') as f:
+        pickle.dump(rev_map, f)
+
 def copy_err():
     FIXDOCX_SOURCEDOC.mkdir(parents=True, exist_ok=True)
     FIXDOCX_DSTDOCX.mkdir(parents=True, exist_ok=True)
     with open(OUTSTAT, 'rb') as f:
         stat = pickle.load(f)
-
-    DOC_BASEDIR = Path(r"E:\motrixDL\baiduyun\MNBVC")
-    DOC_SOURCE = DOC_BASEDIR / "MNBVC—UN文件"
-    DOC_MAP = DOC_BASEDIR / "doc_mapping.pkl"
-    WPF_MAP = DOC_BASEDIR / "wpf_mapping.pkl"
 
     OUTDIRS = [
         DOC_BASEDIR / 'docxoutput',
@@ -163,6 +191,8 @@ def drop_dup():
         FIXDOCX / 'spider_err',
         FIXDOCX / 'spider_pdf',
         FIXDOCX / 'spider_other',
+        FIXDOCX / 'spider_html',
+        DOC_BASEDIR / 'err',
     ]
     done = set()
     for d in DONEDIRS:
@@ -191,6 +221,9 @@ def scan_pdf():
         if typ.endswith('pdf'):
             print('pdf:', doc)
             shutil.move(docpath, FIXDOCX / 'spider_pdf' / doc)
+        elif typ == 'text/html':
+            print('html:', doc, docpath.read_bytes())
+            shutil.move(docpath, FIXDOCX / 'spider_html' / doc)
         elif typ != 'application/msword' and typ != 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
             print(typ, doc)
 
@@ -253,10 +286,54 @@ def compare_directory_files():
     for f in s2:
         print('-', f)
 
+def docx2text():
+    SOURCE_DOCX_DIR = FIXDOCX / 'correct_docx'
+    OUT = FIXDOCX / 'correct_text'
+    for i in os.listdir(SOURCE_DOCX_DIR):
+        filepath = SOURCE_DOCX_DIR / i
+        outpath = OUT / (sufpat.sub('', i, 1) + '.txt')
+        cmd = f"pandoc -i {filepath} -t plain -o {outpath} --strip-comments"
+        print(cmd)
+        r = os.popen(cmd)
+        print(r.read())
+
+def get_patch_file_id():
+    DROP_DIRS = [
+        FIXDOCX / 'blank_file',
+        FIXDOCX / 'convert_encode_err',
+        FIXDOCX / 'no_err',
+        FIXDOCX / 'spider_encrypt',
+        FIXDOCX / 'spider_err',
+        FIXDOCX / 'spider_html',
+        FIXDOCX / 'spider_other',
+        FIXDOCX / 'spider_pdf',
+        FIXDOCX / 'tex_error',
+    ]
+    REWORK_DIRS = FIXDOCX / 'correct_text'
+    with open(REV_MAP, 'rb') as f:
+        rev_map = pickle.load(f)
+    drops = set()
+    reworks = {}
+    for d in DROP_DIRS:
+        for f in os.listdir(d):
+            key = sufpat.sub('', f, 1)
+            drops.add(rev_map[key])
+    for f in os.listdir(REWORK_DIRS):
+        key = sufpat.sub('', f, 1)
+        with open(REWORK_DIRS / f, 'r', encoding='utf-8') as ff:
+            reworks[rev_map[key]] = ff.read()
+    print(drops, reworks)
+    with open(FIXDOCX / 'drops_reworks.pkl', 'wb') as f:
+        pickle.dump((drops, reworks), f)
+    return drops, reworks
+
 if __name__ == "__main__":
     # get_error_text()
+    # construct_rev_index()
     # copy_err()
     # scan_pdf()
     # drop_dup()
     # semiauto_word_classification()
-    compare_directory_files()
+    # compare_directory_files()
+    # docx2text()
+    get_patch_file_id()
