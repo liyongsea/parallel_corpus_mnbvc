@@ -297,6 +297,44 @@ def docx2text():
         r = os.popen(cmd)
         print(r.read())
 
+def clean_paragraph(paragraph):
+    lines = paragraph.split('\n')
+    para = ''
+    table = []
+    for line in lines:
+        line = line.strip()
+        # 表格线或其他分割线
+        if re.match(r'^\+[-=+]+\+|-+|=+|_+$', line):
+            if not para.endswith('\n'):
+                para += '\n'
+            if len(table) > 0:
+                para += '\t'.join(table)
+                table = []
+        # 表格中的空行
+        elif re.match(r'^\|( +\|)+$', line):
+            para += '\t'.join(table) + ' '
+            table = []
+        # 表格中的内容行
+        elif re.match(r'^\|([^|]+\|)+$', line):
+            if len(table) == 0:
+                table = line[1:-2].split('|')
+            else:
+                arr = line[1:-2].split('|')
+                if len(arr) == len(table):
+                    table = [table[i].strip() + arr[i].strip() for i in range(len(table))]
+                elif len(arr) > len(table):
+                    table = [table[i].strip() + arr[i].strip() if i < len(table) else arr[i].strip() for i in range(len(arr))]
+                else:
+                    table = [table[i].strip() + arr[i].strip() if i < len(arr) else table[i].strip() for i in range(len(table))]
+        # 正文内容
+        else:
+            para += ' ' + line
+    if len(table) > 0:
+        if not para.endswith('\n'):
+            para += '\n'
+        para += '\t'.join(table)
+    return re.sub(r'[ \t]{2,}', ' ', re.sub(r'\n{2,}', '\n', para)).strip()
+
 def get_patch_file_id():
     DROP_DIRS = [
         FIXDOCX / 'blank_file',
@@ -310,6 +348,9 @@ def get_patch_file_id():
         FIXDOCX / 'tex_error',
     ]
     REWORK_DIRS = FIXDOCX / 'correct_text'
+    import argostranslate.translate
+    import argostranslate.package
+
     with open(REV_MAP, 'rb') as f:
         rev_map = pickle.load(f)
     drops = set()
@@ -318,10 +359,18 @@ def get_patch_file_id():
         for f in os.listdir(d):
             key = sufpat.sub('', f, 1)
             drops.add(rev_map[key])
-    for f in os.listdir(REWORK_DIRS):
+    for p, f in enumerate(os.listdir(REWORK_DIRS)):
         key = sufpat.sub('', f, 1)
         with open(REWORK_DIRS / f, 'r', encoding='utf-8') as ff:
-            reworks[rev_map[key]] = ff.read()
+            ffc = ff.read()
+        record, isocode = rev_map[key]
+        tr = argostranslate.translate.get_translation_from_codes(isocode, 'en')
+        cleaned = list(filter(bool, (clean_paragraph(para) for para in re.split('\n\n', ffc))))
+        print(p, len(ffc), record, isocode)
+        reworks[(record, isocode)] = (
+            ffc, cleaned, list(map(lambda x: tr.translate(x.replace('\n', ' ')), cleaned))
+        )
+        print(str(reworks[(record, isocode)][2])[:200])
     print(drops, reworks)
     with open(FIXDOCX / 'drops_reworks.pkl', 'wb') as f:
         pickle.dump((drops, reworks), f)

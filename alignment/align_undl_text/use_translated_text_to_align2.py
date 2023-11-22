@@ -173,6 +173,8 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
     # 算输入输出的每行的单词命中率，即：匹配的单词总字符数 / 单词总字符数
     input_hit_rate = [0 for _ in input_lines] 
     output_hit_rate = [0 for _ in output_lines]
+    input_hit = [0 for _ in input_lines] 
+    output_hit = [0 for _ in output_lines]
 
     input_tokens = ''.join(map(lambda x: x[0], input_tokens_info))
     output_tokens = ''.join(map(lambda x: x[0], output_tokens_info))
@@ -182,6 +184,8 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
             _, input_word_length, input_lineid = input_tokens_info[input_token_index]
             _, output_word_length, output_lineid = output_tokens_info[output_token_index]
             # 每个output_lineid对应一段input_lineid的区间，是一个2元素的列表[l, r]，代表本段包含了源文本中行号区间为[l, r]之间的行
+            input_hit[input_lineid] += input_word_length
+            output_hit[output_lineid] += output_word_length
             input_hit_rate[input_lineid] += input_word_length
             output_hit_rate[output_lineid] += output_word_length
 
@@ -202,7 +206,7 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
                 edges.setdefault(f"i{input_lineid}", set()).add(f"o{output_lineid}")
                 edges.setdefault(f"o{output_lineid}", set()).add(f"i{input_lineid}")
     
-    # bfs求连通块
+    # bfs求连通块(其实可以直接用并查集)
     set2set = []
 
     while edges:
@@ -219,12 +223,20 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
         ol = []
         for k in vis:
             if k.startswith('i'):
-                il.append(int(k[1:]))
+                iid = int(k[1:])
+                il.append(iid)
             else:
-                ol.append(int(k[1:]))
+                oid = int(k[1:])
+                ol.append(oid)
         il.sort()
         ol.sort()
-        set2set.append((il, ol))
+        set2set.append(
+            (
+                il, ol, 
+                sum(map(lambda x: input_hit[x], il)) / (1e-3 + sum(map(lambda x: len(input_lines[x].split()), il))),
+                sum(map(lambda x: output_hit[x], ol)) / (1e-3 + sum(map(lambda x: len(output_lines[x].split()), ol)))
+            )
+        )
     return set2set
 
 
@@ -258,11 +270,11 @@ def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[s
     ovis = set()
     set2set = lcs_sequence_alignment(olang, ilang_tr, DROP_THRESHOLD, tokenizer=tokenize_by_space_splited_word)
     set2set.sort(key=lambda x: x[0][0])
-    for oset, iset in set2set:
+    for oset, iset, irate, orate in set2set:
         aligned.append(','.join(map(str, iset)) + '|' + ','.join(map(str, oset)))
         itmp = '\n'.join(map(lambda x: ilang[x], iset))
         otmp = '\n'.join(map(lambda x: olang[x], oset))
-        aligned_pairs.append((itmp, otmp))
+        aligned_pairs.append((itmp, otmp, irate, orate))
         preview_text.append("")
         preview_text.append(itmp)
         preview_text.append("~" * 10)
@@ -304,8 +316,8 @@ def map_func(ds):
             with (OUTDIR / (rec + '.txt')).open('w', encoding='utf-8') as f:
                 f.write(preview)
             for apairs, atext in zip(aligned, pairs):
-                i, o = atext
-                li.append({'record': rec, 'clean_para_index_set_pair': apairs, 'src': SRC, 'dst': DST, 'src_text': i, 'dst_text': o})
+                i, o, _ir, _or = atext
+                li.append({'record': rec, 'clean_para_index_set_pair': apairs, 'src': SRC, 'dst': DST, 'src_text': i, 'dst_text': o, 'src_rate': _ir, 'dst_rate': _or})
     return li
 
 from load_and_translate import clean_paragraph
@@ -315,9 +327,12 @@ import pickle
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
 DS = datasets.load_from_disk(TASK_SOURCE)
-SRC = 'de'
+SRC = 'fr'
 DST = 'en'
 STEP = 10
+
+with open(r'F:\fixdocx\drops_reworks.pkl', 'rb') as f:
+    drops, reworks = pickle.load(f)
 
 def gen_dump_translated_text():
     srcs = (Path(rf'F:\{SRC}2{DST}\argos'), )
@@ -330,15 +345,18 @@ def gen_dump_translated_text():
             with open(src / son / 'dup.pkl', 'rb') as f:
                 tr = pickle.load(f)
             for i, dt in enumerate(data):
-                if not any(dt[f'clean_{SRC}']) or not any(dt[f'clean_{DST}']):
+                if not any(dt[f'clean_{SRC}']) or not any(dt[f'clean_{DST}']) or (dt['record'], SRC) in drops or (dt['record'], DST) in drops:
                     # x.append([])
                     if 0 != len(tr[i]):
                         print(sid, i, f"unexpected translation, {len(dt[f'clean_{SRC}'])}, {len(dt[f'clean_{DST}'])}, {len(tr[i])}")
-                        shutil.rmtree(src / son)
-                        break
-                    yield {f'clean_{SRC}': [], f'clean_{DST}': [], 'record': dt['record'], f'{SRC}2{DST}': tr[i]}
+                        # shutil.rmtree(src / son)
+                        # break
+                    yield {f'clean_{SRC}': [], f'clean_{DST}': [], 'record': dt['record'], f'{SRC}2{DST}': []}
                 else:
-                    # x.append(i[f'clean_{SRC}'])
+                    if (dt['record'], SRC) in reworks:
+                        _, dt[f'clean_{SRC}'], tr[i] = reworks[(dt['record'], SRC)]
+                    if (dt['record'], DST) in reworks:
+                        _, dt[f'clean_{DST}'], _ = reworks[(dt['record'], DST)]
                     if len(dt[f'clean_{SRC}']) != len(tr[i]):
                         print(sid, i, f"len inequal, {len(dt[f'clean_{SRC}'])}, {len(tr[i])}")
                         shutil.rmtree(src / son)
@@ -358,11 +376,13 @@ if __name__ == '__main__':
     OUTDIR.mkdir(exist_ok=True)
     DUMP_TRANSLATION_PATH.mkdir(exist_ok=True)
     METHOD2_PREVIEW_DS_PATH.mkdir(exist_ok=True)
-    # ds = datasets.Dataset.from_generator(gen_dump_translated_text)
-    # ds.save_to_disk(DUMP_TRANSLATION_PATH)
+    ds = datasets.Dataset.from_generator(gen_dump_translated_text)
+    ds.save_to_disk(DUMP_TRANSLATION_PATH)
+    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
+
     ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
     ds = datasets.Dataset.from_list(map_func(ds))
     ds.save_to_disk(METHOD2_PREVIEW_DS_PATH)
     # use_proxy()
-    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
+    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_aligned', split='train', token=read_secret('HF_TOKEN'), )
 
