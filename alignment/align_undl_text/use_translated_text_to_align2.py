@@ -233,8 +233,8 @@ def lcs_sequence_alignment(input_lines: list[str] , output_lines: list[str], dro
         set2set.append(
             (
                 il, ol, 
-                sum(map(lambda x: input_hit[x], il)) / (1e-3 + sum(map(lambda x: len(input_lines[x].split()), il))),
-                sum(map(lambda x: output_hit[x], ol)) / (1e-3 + sum(map(lambda x: len(output_lines[x].split()), ol)))
+                sum(map(lambda x: input_hit[x], il)) / (1e-3 + sum(map(lambda x: len(''.join(input_lines[x].split())), il))),
+                sum(map(lambda x: output_hit[x], ol)) / (1e-3 + sum(map(lambda x: len(''.join(output_lines[x].split())), ol)))
             )
         )
     return set2set
@@ -376,11 +376,12 @@ if __name__ == '__main__':
     OUTDIR.mkdir(exist_ok=True)
     DUMP_TRANSLATION_PATH.mkdir(exist_ok=True)
     METHOD2_PREVIEW_DS_PATH.mkdir(exist_ok=True)
-    ds = datasets.Dataset.from_generator(gen_dump_translated_text)
-    ds.save_to_disk(DUMP_TRANSLATION_PATH)
-    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
+    # ds = datasets.Dataset.from_generator(gen_dump_translated_text)
+    # ds.save_to_disk(DUMP_TRANSLATION_PATH)
 
     ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
+    # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
+
     ds = datasets.Dataset.from_list(map_func(ds))
     ds.save_to_disk(METHOD2_PREVIEW_DS_PATH)
     # use_proxy()
