@@ -307,6 +307,7 @@ def align(ilang: str | list[str], olang: str | list[str], ilang_tr: str | list[s
 def map_func(ds):
     li = []
     for rid, row in enumerate(ds):
+        print(rid)
         rec = row['record']
         src = row[f'clean_{SRC}']
         dst = row[f'clean_{DST}']
@@ -326,8 +327,8 @@ import pickle
 
 BASE_DIR = Path(r'F:')
 TASK_SOURCE = BASE_DIR / 'undl_text_local'
-DS = datasets.load_from_disk(TASK_SOURCE)
-SRC = 'fr'
+TASK_REWORK_OUT = BASE_DIR / 'rework_undl_text_local'
+SRC = 'zh'
 DST = 'en'
 STEP = 10
 
@@ -335,6 +336,7 @@ with open(r'F:\fixdocx\drops_reworks.pkl', 'rb') as f:
     drops, reworks = pickle.load(f)
 
 def gen_dump_translated_text():
+    DS = datasets.load_from_disk(TASK_SOURCE)
     srcs = (Path(rf'F:\{SRC}2{DST}\argos'), )
     for src in srcs:
         for son in list(os.listdir(src)):
@@ -363,6 +365,19 @@ def gen_dump_translated_text():
                         break
                     yield {f'clean_{SRC}': dt[f'clean_{SRC}'], f'clean_{DST}': dt[f'clean_{DST}'], 'record': dt['record'], f'{SRC}2{DST}': tr[i]}
 
+def gen_rework_undl_text_local():
+    DS = datasets.load_from_disk(TASK_SOURCE)
+
+    def rework_map(row):
+        for lang in ['ar', 'de', 'es', 'fr', 'ru', 'zh', 'en']:
+            if (row['record'], lang) in reworks:
+                row[lang], _, _ = reworks[(row['record'], lang)]
+            if (row['record'], lang) in drops:
+                row[lang] = ''
+        return row
+    DS = DS.map(rework_map)
+    DS.save_to_disk(TASK_REWORK_OUT)
+    ds.push_to_hub(repo_id=f'rework_undl_text', split='train', token=read_secret('HF_TOKEN'), )
 
 def read_secret(key: str) -> str:
     v = os.environ[key] = os.environ.get(key) or input(f"Please input {key}:")    
@@ -376,14 +391,15 @@ if __name__ == '__main__':
     OUTDIR.mkdir(exist_ok=True)
     DUMP_TRANSLATION_PATH.mkdir(exist_ok=True)
     METHOD2_PREVIEW_DS_PATH.mkdir(exist_ok=True)
-    # ds = datasets.Dataset.from_generator(gen_dump_translated_text)
-    # ds.save_to_disk(DUMP_TRANSLATION_PATH)
+    ds = datasets.Dataset.from_generator(gen_dump_translated_text)
+    ds.save_to_disk(DUMP_TRANSLATION_PATH)
 
-    ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
+    # use_proxy()
+    # ds = datasets.load_from_disk(DUMP_TRANSLATION_PATH)
     # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_translation', split='train', token=read_secret('HF_TOKEN'), )
 
     ds = datasets.Dataset.from_list(map_func(ds))
     ds.save_to_disk(METHOD2_PREVIEW_DS_PATH)
-    # use_proxy()
+    # ds = datasets.load_from_disk(METHOD2_PREVIEW_DS_PATH)
     # ds.push_to_hub(repo_id=f'undl_{SRC}2{DST}_aligned', split='train', token=read_secret('HF_TOKEN'), )
 

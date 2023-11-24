@@ -5,6 +5,7 @@ from typing import List
 import re
 import argostranslate.translate
 import argostranslate.package
+import gc
 
 import time
 import requests
@@ -69,6 +70,7 @@ if __name__ == '__main__':
                     'dst': dst,
                     'out': buf
                 }, headers=allow_compress, timeout=30)
+                gc.collect()
                 break
             except Exception as e:
                 print(e)
