@@ -44,7 +44,7 @@ def main(args):
                 with open('./aops_out.jsonl', 'a', encoding='utf-8') as fp_o2:
                     for fd in formatted_data:
                         fp_o2.write(json.dumps(fd) + '\n')
-            progress.update(progress.n + 1)
+            progress.update(1)
 
 
 if __name__ == '__main__':
