@@ -20,17 +20,18 @@ def main(args):
             
             with open(Path(_[0]) / file, 'r', encoding='utf-8') as fp:
                 aops_data = json.load(fp)
-                formatted_data = []
-                for post in aops_data['posts'][1:]:
-                    formatted_data.append({
+                formatted_data = {
                         'question': {
                             'post_rendered': aops_data['posts'][0]['post_rendered'],
                             'post_canonical': aops_data['posts'][0]['post_canonical']
-                        },
-                        'answer': {
+                            },
+                        'answers': []
+                        }
+
+                for post in aops_data['posts'][1:]:
+                    formatted_data['answers'].append({
                             'post_rendered': post['post_rendered'],
                             'post_canonical': post['post_canonical']
-                        }
                     })
             
             # Save as the original directory structure or a jsonl file.
@@ -42,8 +43,8 @@ def main(args):
                     json.dump(formatted_data, fp_o1)
             else:
                 with open('./aops_out.jsonl', 'a', encoding='utf-8') as fp_o2:
-                    for fd in formatted_data:
-                        fp_o2.write(json.dumps(fd) + '\n')
+                    fp_o2.write(json.dumps(formatted_data) + '\n')
+
             progress.update(1)
 
 
