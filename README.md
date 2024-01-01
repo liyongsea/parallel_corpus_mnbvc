@@ -6,6 +6,11 @@ parallel corpus dataset from the mnbvc project
 pip install -r requirements.txt
 ```
 
+### 添加新的语料数据集的方法
+可以整理成这个格式
+- 代码做成PR到这个仓库，每个项目在根目录下创建一个项目名字，譬如联合国平行语料un_parallel_corpus 
+- 跟新一下wiki
+- 整理好的数据用[格式检查](https://wiki.mnbvc.org/doku.php/%E7%8E%B0%E6%9C%89%E8%AF%AD%E6%96%99%E6%A0%BC%E5%BC%8F)工具来来检查
 
 ### 输出的jsonl格式说明
 
