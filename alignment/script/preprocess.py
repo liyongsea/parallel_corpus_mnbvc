@@ -11,7 +11,7 @@ from collections import Counter
 import datasets
 
 PAGINATION_TOKEN = '\n----\n' # 分页符
-FILTER_LOG = 'preprocessed_log.jsonl' # 过滤日志文件路径
+FILTER_LOG_DIR = Path('preprocessed_log/') # 过滤日志文件路径
 HEADER_SCAN_LIMIT = 100 # 我们认为页眉至多出现在距离每页开头100个字符以内的范围内
 LANGS = ['zh', 'fr', 'es', 'ru', 'en'] # 待预处理的语言表，这里暂时不包括阿拉伯语ar
 DIGITS_PATTERN = re.compile('^\d+$') # 用来认数字的正则，引入是因为str.isdigit不可靠，在并非严格是数字的时候会给True
@@ -19,11 +19,12 @@ MATCHER_RATIO = 0.72
 PREPROCESS_DIR = Path('preprocessed_dump')
 
 PREPROCESS_DIR.mkdir(exist_ok=True)
+FILTER_LOG_DIR.mkdir(exist_ok=True)
 
-def make_filter_log(filtered: str, record: str | int, lang: str, page: str | int, reason: str):
+def make_filter_log(filtered: str, record: str | int, lang: str, page: str | int, reason: str, type: str, line: int=None):
     """将过滤的内容写到log里方便分析"""
-    with open(FILTER_LOG, 'a', encoding='utf-8', buffering=1 << 20) as f:
-        json.dump({'record': str(record), 'lang': lang, 'page': str(page), 'reason': reason, 'filtered': filtered}, f)
+    with (FILTER_LOG_DIR / f'{record}.jsonl').open('a', encoding='utf-8', buffering=1 << 20) as f:
+        json.dump({'record': str(record), 'lang': lang, 'page': str(page), 'reason': reason, 'filtered': filtered, 'line': line}, f)
         f.write('\n')
 
 def make_banner(record: str) -> str:
@@ -211,12 +212,12 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
                     if matcher.real_quick_ratio() > MATCHER_RATIO and matcher.quick_ratio() > MATCHER_RATIO and matcher.ratio() > MATCHER_RATIO:
                         sum_freq += occurrence_count
                 if is_freq(sum_freq):
-                    make_filter_log(line, record, lang, pageid, f'line_freq: {sum_freq}, pages: {len(pages)}')
+                    make_filter_log(line, record, lang, pageid, f'line_freq: {sum_freq}, pages: {len(pages)}', type='[line]line digest frequency')
                     return False
                 return True
 
             newlines = []
-            for line in filter(line_noise_judge, header.splitlines()): # 我们先滤掉了有问题的行
+            for lineid, line in enumerate(filter(line_noise_judge, header.splitlines())): # 我们先滤掉了有问题的行
                 reach_end_of_noises = False # 用来记录第一次新的有效token被加入。因为是处理页眉，我们只删连续一段开头的，这样写来防止删掉类似the la de这些常见单词
 
                 def token_noise_judge(token: str) -> bool:
@@ -230,15 +231,15 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
                         return True
                     if pagination_offset is not None and (re.match(DIGITS_PATTERN, token) or
                              re.match(r'^\d+/\d+', token)) and str(pageid + pagination_offset) in re.findall(r'\d+', token): # 过滤页码
-                        make_filter_log(token, record, lang, pageid, f'likely page number')
+                        make_filter_log(token, record, lang, pageid, f'likely page number', type='[number]pagination', line=lineid)
                         return False
                     if all_lang_token_occurrences[token] > all_lang_page_num_sum // 2:
-                        make_filter_log(token, record, lang, pageid, f'overall_tk_freq: {all_lang_token_occurrences[token]}, all_pages: {all_lang_page_num_sum}') # 过滤全文常见token
+                        make_filter_log(token, record, lang, pageid, f'overall_tk_freq: {all_lang_token_occurrences[token]}, all_pages: {all_lang_page_num_sum}', type='[token]all language frequency', line=lineid) # 过滤全文常见token
                         return False
 
                     token_freq = token_occurrences[token]
                     if is_freq(token_freq) and not token_freq > len(pages): # 过滤单文常见token
-                        make_filter_log(token, record, lang, pageid, f'tk_freq: {token_freq}, pages: {len(pages)}')
+                        make_filter_log(token, record, lang, pageid, f'tk_freq: {token_freq}, pages: {len(pages)}', type='[token]current language frequency', line=lineid)
                         return False
                     reach_end_of_noises = True
                     return True
@@ -251,7 +252,7 @@ def drop_pagination_header_and_footer(row: datasets.DatasetDict):
             new_page = new_header + page[HEADER_SCAN_LIMIT:] # 我们至此已经处理完页眉，记在new_header里，但是页脚注解部分也需要去
             annotation_index = new_page.find('__________')
             if annotation_index != -1:
-                make_filter_log(new_page[annotation_index:], record, lang, pageid, f"annotation block")
+                make_filter_log(new_page[annotation_index:], record, lang, pageid, f"annotation block", type='[annotation]')
                 new_page = new_page[:annotation_index]
             
             pages[pageid] = new_page.strip() # 一页处理完成，写回pages里
