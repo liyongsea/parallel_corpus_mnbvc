@@ -3,3 +3,7 @@ transformers==4.20.0
 sentencepiece
 lxml
 PyPDF2
+wandb
+scikit-learn
+pylcs
+tiktoken
