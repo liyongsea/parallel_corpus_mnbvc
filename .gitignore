@@ -9,6 +9,11 @@ error_url.txt
 *.json.lock
 gpt_cache
 wandb
+cache_*
+wandb
+*.json.lock
+gpt_cache
+batch_cache
 # C extensions
 *.so
 
@@ -47,6 +52,7 @@ pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
+.idea/
 .tox/
 .nox/
 .coverage

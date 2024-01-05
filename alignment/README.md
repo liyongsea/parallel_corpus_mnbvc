@@ -50,3 +50,30 @@ The module outputs the following information:
 - A classification report providing precision, recall, F1-score, and support for softline and non-softline instances.
 
 
+## batch_sequential_for_one_file.py
+
+example: `python batch_sequential_for_one_file.py --api_key=sk-xxxxxx --dataset_index=0~15293`
+
+
+options:
+
+    --api_key API_KEY     openai api key
+    --dataset_index DATASET_INDEX  文件下标，请给一个0~9000的整数，每个整数对应一个文件的任务
+
+在正式运行之前，我们建议先单线程运行一次脚本跑0下标的任务：
+
+```
+python batch_sequential_for_one_file.py --key=[Your_Key] --dataset_index=0
+```
+
+这次运行是为了将hf数据集下载并且缓存到工作目录，避免之后的请求中反复访问hf。
+
+之后，我们可以令脚本并行地运行，我们建议，通过命令行新建进程的方式来执行这个脚本：
+
+```python
+os.system('python batch_sequential_for_one_file.py --key=sk-xxxxxx --dataset_index=0~15293')
+```
+
+每个文件完成时，本地工作目录下的`batch_cache/done`里会存有已经处理完毕的文件标号及其分段结果。
+
+如果一个文件的任务在极端情况下（断网，openai的server error，overload error等）无法被完成，脚本会抛exception然后直接中断，返回码非零。这种情况下并发调用的脚本应该记一下文件号，然后先不管这个任务，让其它任务继续。下次运行前我们再分析这些未被正确处理的文件。
