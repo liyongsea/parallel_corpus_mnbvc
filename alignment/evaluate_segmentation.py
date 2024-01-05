@@ -8,11 +8,12 @@ from sklearn.metrics import confusion_matrix, classification_report
 from tqdm import tqdm
 import wandb
 
-from text_segmenter import *
-from batch_detector import GPTBatchDetector
-from batch_sequential_detector import GPTBatchSequentialDetector
-from rule_based_detector import RuleBasedDetector
-import utils
+from alignment.text_segmenter import *
+from alignment.batch_detector import GPTBatchDetector
+from alignment.batch_sequential_detector import GPTBatchSequentialDetector
+from alignment.bert_detector import BertLineBreakDetector, HfClassifier
+from alignment.rule_based_detector import RuleBasedDetector
+import alignment.utils as utils
 
 
 def _get_folder_from_config(config):
@@ -43,11 +44,22 @@ def main(detector_name, remove_long_file, detector_config):
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = _get_folder_from_config(detector_config)
         detector = GPTBatchDetector('gpt-remote', cache_dir, token_limit=token_limit)
+    elif detector_name == "LSTMLineBreakDetector":
+        detector = BertLineBreakDetector.from_file('LSTMDetector', './notebooks/model.pt', 'bert-base-cased')
+    elif detector_name == "BertLineBreakDetector":
+        from transformers import AutoModelForSequenceClassification
+        from transformers import DistilBertTokenizer
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-cased')
+        model = AutoModelForSequenceClassification.from_pretrained("liyongsea/bert_segmenter")
+        detector = BertLineBreakDetector('BertDetector', HfClassifier(model), tokenizer)
     elif detector_name == "GptBatchSequentialDetector":
         print("using confing", detector_config)
         token_limit = detector_config.get('token_limit', 1400)
         cache_dir = 'batch_sequential_' + _get_folder_from_config(detector_config)
         detector = GPTBatchSequentialDetector('gpt-remote', cache_dir, token_limit=token_limit, use_proxy=True)
+    elif issubclass(detector_name.__class__, HardLineBreakDetector):
+        print("Assuming detector is passed as a object")
+        detector = detector_name
     else:
         raise ValueError(f"Unknown detector name: {detector_name}")
 
@@ -64,7 +76,7 @@ def main(detector_name, remove_long_file, detector_config):
 
 
     # Load the validation data from hf
-    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph_19", split="train", ignore_verifications=True)
+    validation_data = datasets.load_dataset("bot-yaya/human_joined_en_paragraph_19", split="train", verification_mode="no_checks")
 
     if remove_long_file:
         FILE_WORD_TH = 20000
