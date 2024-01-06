@@ -19,6 +19,6 @@ if __name__ == '__main__':
     
     dataset = datasets.Dataset.from_csv(downloaded_data_file)
     
+    # TODO: row => {zh: ["", ...], en: ["", ...]}
     dataset.save_to_disk("./us_embassy_converted")
-    
     
