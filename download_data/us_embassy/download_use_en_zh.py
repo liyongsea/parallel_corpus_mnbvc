@@ -1,3 +1,4 @@
+import argparse
 import re
 import logging as log
 import csv
@@ -50,9 +51,10 @@ def task(url):
 
 
 if __name__ == '__main__':
+    log.info(f'install sitemap...')
     index_sitemap = SessionManager.instance().get('https://china.usembassy-china.org.cn/sitemap_index.xml')
     dom = parseString(index_sitemap.content.decode('utf-8'))
-
+    
     # 帖子sitemap-url集合
     post_sitemap_urls = []
     for el in dom.documentElement.getElementsByTagName('loc'):
@@ -73,12 +75,20 @@ if __name__ == '__main__':
                 post_zh_urls.add(post_url)
 
     log.info(f'URL Total: {len(post_zh_urls)}')
+    
+    # TODO: debug，减少数据量
+    post_zh_urls = list(post_zh_urls)[:2]
+
+    parser = argparse.ArgumentParser(description='美国大使馆数据下载')
+    parser.add_argument('--downloaded_data_file', default="data.csv", help='输出csv的文件名')
+
+    args = parser.parse_args()
 
     # 分发任务
     # 由于该站频繁访问会给拦截，所以跑慢点吧
     with ProcessPoolExecutor(max_workers=3) as pool:
         result = pool.map(task, post_zh_urls)
-        with open('./data.csv', 'w', encoding='utf-8') as csv_fp:
+        with open(args.downloaded_data_file, 'w', encoding='utf-8') as csv_fp:
             csv_obj = csv.writer(csv_fp)
             csv_obj.writerow(('zh', 'en'))
             progress = tqdm(result, total=len(post_zh_urls))

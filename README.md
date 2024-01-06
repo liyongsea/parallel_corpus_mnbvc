@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 对于每一个文件，他的json结构层次如下：
 
-```python
+```json
 {
     '文件名': '文件.txt',
     '是否待查文件': False,
@@ -30,7 +30,7 @@ pip install -r requirements.txt
 
 将每一行为一个段落，段落的json结构层次如下：
 
-```python
+```json
 {
     '行号': line_number,
     '是否重复': False,

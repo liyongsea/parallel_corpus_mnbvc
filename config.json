@@ -1,0 +1,10 @@
+[
+    {
+        "script": {
+            "downlaod": "download_data/us_embassy/download_use_en_zh.py",
+            "format_conversion": "download_data/us_embassy/format_conversion.py",
+            "algnment": ""
+        },
+        "identifier": "us_embassy"
+    }
+]
