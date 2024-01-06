@@ -1,9 +1,9 @@
 [
     {
         "script": {
-            "downlaod": "download_data/us_embassy/download_use_en_zh.py",
+            "download": "download_data/us_embassy/download_use_en_zh.py",
             "format_conversion": "download_data/us_embassy/format_conversion.py",
-            "algnment": ""
+            "alignment": ""
         },
         "identifier": "us_embassy"
     }
