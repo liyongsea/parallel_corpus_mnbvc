@@ -225,23 +225,13 @@ def get_tuple(dataset,n): # ————取字典第n条内容建立一个元组
     tuple_u_n=(url,code,langue)
     return tuple_u_n
 
-#————————————主程序————————————
-if __name__ == '__main__':
-
-    # 从命令行获取存储路径
-    parser = ap.ArgumentParser(description="用以指定地址存储") # parser创建了arg_parser对象,字符串在生成的帮助信息中显示
-    parser.add_argument("-o","--output_file",help="输出文件的路径") # 添加一个--output_file的位置参数，--说明其为可选参数，简写为-o
-    args= parser.parse_args()
-    save_path=args.output_file
+def main(dataset, save_path):
     print("输出路径",save_path)
 
     # 调用下载类
     downloader = Downloader(save_path=save_path)
 
-    # 从网页上获取链接数据
-    link = 'dabaisuv/UN_Documents_2000_2023'
-    dataset = get_dataset(link)
-    num_row = len(dataset["train"]['链接'])
+    num_row = len(dataset)
     print("链接获取完成")
 
     # 多线程
@@ -260,6 +250,7 @@ if __name__ == '__main__':
         tuple_UN = get_tuple(dataset,i)
         if tuple_UN is not None:
             queue.put(tuple_UN) # 向任务队列中置入元组
+
     print("任务创建完成，开始下载：开始大小 %d" % queue.qsize()) # 开始时显示大小 正确
 
     with ThreadPoolExecutor(max_workers) as executor:
