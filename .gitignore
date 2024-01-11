@@ -140,3 +140,7 @@ dmypy.json
 
 # VSCode stuff
 .vscode/
+
+un_crawl_result
+
+un_crawl_temp
