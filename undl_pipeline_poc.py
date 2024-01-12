@@ -7,16 +7,17 @@
 """
 from pathlib import Path
 import os
+import re
+import pickle
 
 os.environ['OPENSSL_CONF'] = r'C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\openssl.cnf'
 # 打开SSL重新协商，https://stackoverflow.com/questions/71603314/ssl-error-unsafe-legacy-renegotiation-disabled
 import requests
-import re
-import pickle
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'):
     session = requests.session()
-    headers = {
+    session.headers = {
         'Connection': 'keep-alive',
         'Pragma': 'no-cache',
         'Host': 'documents.un.org',
@@ -26,6 +27,10 @@ def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'
     }
     page = 0
 
+    proxies = {
+        'http': 'http://127.0.0.1:8080',
+        'https': 'http://127.0.0.1:8080',
+    }
 
     data = {
         "view:_id1:_id2:txtSymbol":"",
@@ -44,27 +49,54 @@ def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'
         "view:_id1:_id2:cbSort":"R",
         "view:_id1:_id2:hdnSubj":"",
         "$$viewid":"!akj84efbvsyavfcz3ciemq6hk!",
-        "$$xspsubmitid: view:_id1:_id2":"id131",
+        "$$xspsubmitid":"view:_id1:_id2:_id131",
         "$$xspexecid":"",
         "$$xspsubmitvalue":"",
         "$$xspsubmitscroll":"0|300",
-        "view:_id1: view":"id1"
+        "view:_id1":"view:id1"
     }
     
-    # resp = session.get('https://documents.un.org/prod/ods.nsf/home.xsp', headers=headers)
+    resp = session.get('https://documents.un.org/prod/ods.nsf/home.xsp', proxies=proxies, verify=False)
 
-    # view_id_pattern = re.compile(r"""<input type="hidden" name="\$\$viewid" id="view:_id1__VUID" value="(.*?)">""", re.M)
-    # data["$$viewid"] = view_id_pattern.findall(resp.text)[0]
+    with open('tmpreq0.pkl', 'wb') as f:
+        pickle.dump(resp, f)
 
-    # resp = session.post('https://documents.un.org/prod/ods.nsf/home.xsp', headers=headers, data=data)
+    view_id_pattern = re.compile(r"""<input type="hidden" name="\$\$viewid" id="view:_id1__VUID" value="(.*?)">""", re.M)
+    data["$$viewid"] = view_id_pattern.findall(resp.text)[0]
 
-    # with open('tmpreq1.pkl', 'wb') as f:
+    multipart_data = MultipartEncoder(
+        fields=data
+    )
+
+    resp = session.post('https://documents.un.org/prod/ods.nsf/home.xsp', data=multipart_data, headers={'Content-Type': multipart_data.content_type}, proxies=proxies, verify=False)
+
+    with open('tmpreq1.pkl', 'wb') as f:
+        pickle.dump(resp, f)
+
+    # resp = session.get('https://documents.un.org/prod/ods.nsf/xpSearchResultsM.xsp')
+    # print(resp.text.count('OpenElement'))
+
+    # with open('tmpreq2.pkl', 'wb') as f:
     #     pickle.dump(resp, f)
 
-    with open('tmpreq1.pkl', 'rb') as f:
-        resp = pickle.load(f)
 
-    print(resp.text)
+    with open('tmpreq0.pkl', 'rb') as f:
+        resp0 = pickle.load(f)
+    with open('tmpreq1.pkl', 'rb') as f:
+        resp1 = pickle.load(f)
+    # with open('tmpreq2.pkl', 'rb') as f:
+    #     resp2 = pickle.load(f)
+
+    print(resp0.text.count('OpenElement'))
+    print(resp1.text.count('OpenElement'))
+    # print(resp2.text.count('OpenElement'))
+
+    with open('tmpreq0.htm', 'w', encoding='utf-8') as f:
+        f.write(resp0.text)
+    with open('tmpreq1.htm', 'w', encoding='utf-8') as f:
+        f.write(resp1.text)
+    # with open('tmpreq2.htm', 'w', encoding='utf-8') as f:
+    #     f.write(resp2.text)
 
     # response = session.get(
     #     'https://documents.un.org/prod/ods.nsf/xpSearchResultsM.xsp?$$ajaxid=view%3A_id1%3A_id2%3AcbMain%3AmainPanel',
