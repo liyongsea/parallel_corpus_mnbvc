@@ -9,6 +9,7 @@ from pathlib import Path
 import os
 import re
 import pickle
+from bs4 import BeautifulSoup
 
 os.environ['OPENSSL_CONF'] = r'C:\Users\ATRI\Desktop\parallel_corpus_mnbvc\openssl.cnf'
 # 打开SSL重新协商，https://stackoverflow.com/questions/71603314/ssl-error-unsafe-legacy-renegotiation-disabled
@@ -25,7 +26,6 @@ def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.198 Safari/537.36',
         'Origin': 'https://documents.un.org',
     }
-    page = 0
 
     proxies = {
         'http': 'http://127.0.0.1:8080',
@@ -56,10 +56,12 @@ def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'
         "view:_id1":"view:id1"
     }
     
-    resp = session.get('https://documents.un.org/prod/ods.nsf/home.xsp', proxies=proxies, verify=False)
+    resp = session.get('https://documents.un.org/prod/ods.nsf/home.xsp',
+        proxies=proxies, verify=False
+     )
 
-    with open('tmpreq0.pkl', 'wb') as f:
-        pickle.dump(resp, f)
+    # with open('tmpreq0.pkl', 'wb') as f:
+    #     pickle.dump(resp, f)
 
     view_id_pattern = re.compile(r"""<input type="hidden" name="\$\$viewid" id="view:_id1__VUID" value="(.*?)">""", re.M)
     data["$$viewid"] = view_id_pattern.findall(resp.text)[0]
@@ -68,51 +70,40 @@ def get_doc_list_from_datetime_range(from_date='2000-01-01',to_date='2024-01-03'
         fields=data
     )
 
-    resp = session.post('https://documents.un.org/prod/ods.nsf/home.xsp', data=multipart_data, headers={'Content-Type': multipart_data.content_type}, proxies=proxies, verify=False)
+    resp = session.post('https://documents.un.org/prod/ods.nsf/home.xsp',
+        data=multipart_data, headers={'Content-Type': multipart_data.content_type},
+        proxies=proxies, verify=False
+    )
 
-    with open('tmpreq1.pkl', 'wb') as f:
-        pickle.dump(resp, f)
+    data["$$viewid"] = view_id_pattern.findall(resp.text)[0]
 
-    # resp = session.get('https://documents.un.org/prod/ods.nsf/xpSearchResultsM.xsp')
-    # print(resp.text.count('OpenElement'))
-
-    # with open('tmpreq2.pkl', 'wb') as f:
+    # with open('tmpreq1.pkl', 'wb') as f:
     #     pickle.dump(resp, f)
+
+    soup = BeautifulSoup(resp.text, 'html.parser')
+    print(soup.find_all('div', attrs={'id':'view:_id1:_id2:cbMain:_id136:rptResults'})[0])
+
+    page = 1 # 从第二页开始爬，因为第一页信息已经有了
+    while 1:
+        page_token = f'view:_id1:_id2:cbMain:_id136:pager1__Group__lnk__{page}'
+        data['$$xspsubmitid'] = page_token
+        resp = session.post(
+            'https://documents.un.org/prod/ods.nsf/xpSearchResultsM.xsp?$$ajaxid=view%3A_id1%3A_id2%3AcbMain%3AmainPanel',
+            data=data,
+            proxies=proxies, verify=False
+        )
+        print(resp.text.count('OpenElement'))
+        page += 1
+        break
 
 
     with open('tmpreq0.pkl', 'rb') as f:
         resp0 = pickle.load(f)
     with open('tmpreq1.pkl', 'rb') as f:
         resp1 = pickle.load(f)
-    # with open('tmpreq2.pkl', 'rb') as f:
-    #     resp2 = pickle.load(f)
 
-    print(resp0.text.count('OpenElement'))
     print(resp1.text.count('OpenElement'))
-    # print(resp2.text.count('OpenElement'))
 
-    with open('tmpreq0.htm', 'w', encoding='utf-8') as f:
-        f.write(resp0.text)
-    with open('tmpreq1.htm', 'w', encoding='utf-8') as f:
-        f.write(resp1.text)
-    # with open('tmpreq2.htm', 'w', encoding='utf-8') as f:
-    #     f.write(resp2.text)
-
-    # response = session.get(
-    #     'https://documents.un.org/prod/ods.nsf/xpSearchResultsM.xsp?$$ajaxid=view%3A_id1%3A_id2%3AcbMain%3AmainPanel',
-    #     headers=headers,
-    #     data=data,
-    # )
-    # print("raw1:",response.text)
-
-    # with open('tmpreq.pkl', 'wb') as f:
-    #     pickle.dump(response, f)
-
-    # # with open('tmpreq.pkl', 'rb') as f:
-    # #     response = pickle.load(f)
-    # raw = response.text
-    # print("raw:",raw)
-    
 
 def download_doc_from_net(timeout=30):
     """
