@@ -65,9 +65,9 @@ def main(config_file: Path):
     if not script:
         print(f"未找到标识符为 '{args.identifier}' 的配置。")
         sys.exit(1)
-    
+
     logging.info(f"Downloading '{args.identifier}' data is processing...")
-    # download(script["downlaod"], unknown_args)
+    download(script["download"], unknown_args)
     logging.info(f"Downloading '{args.identifier}' data is successed!")
     
     logging.info(f"'{args.identifier}' format converting...")
@@ -75,7 +75,7 @@ def main(config_file: Path):
     logging.info(f"'{args.identifier}' format converted!")
     
     logging.info(f"'{args.identifier}' is aligning...")
-    align(script["algnment"], unknown_args)
+    align(script["alignment"], unknown_args)
     logging.info(f"'{args.identifier}' is align completed!")
     
     print(script)

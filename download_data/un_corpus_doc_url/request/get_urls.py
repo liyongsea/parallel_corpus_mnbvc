@@ -76,13 +76,18 @@ def get_page_info(soup) -> (str, str, str, str):
     total = b_tags[3].text
 
     page_info_element = soup.select_one(".pagination")
+
+    if not page_info_element:
+        log.info(f"此时间范围不存在数据")
+        return None, None, None, None
+    
     active_li_tags = page_info_element.select("li.active")
     active_li_tags = list(filter(lambda li: "Group__lnk" in li.select_one("a").get('id'), active_li_tags))
   
     if len(active_li_tags) == 1:
         current_page = active_li_tags[0].text
     else:
-        raise ValueError(f"{current_start} -- {current_end}, 不存在页数信息")
+        log.info(f"{current_start} -- {current_end}, 不存在页数信息")
     
     return current_start, current_end, total, current_page
 
@@ -217,6 +222,9 @@ def get_urls(from_date, to_date, save_path):
     soup = BeautifulSoup(text, "html.parser")
     _, current_end, total, current_page_str = get_page_info(soup)
 
+    if not total:
+        return
+
     is_continue, current_page = check_time_range_continue_request(from_date, to_date, save_path, int(total))
     if not is_continue:
         log.info(f"{from_date} -- {to_date} 所有数据均被缓存!")
@@ -244,11 +252,6 @@ def get_urls(from_date, to_date, save_path):
 
 
 def main(dates, save_path: Path):
-    for index, date in tqdm(enumerate(dates)):
-        print(f"Progress: {index}/{len(dates)}")
+    for _, date in tqdm(enumerate(dates), total=len(dates)):
         get_urls(date[0], date[1], save_path)
 
-if __name__ == "__main__":
-    SAVE_PATH = Path("un_doc_url_result")
-    SAVE_PATH.mkdir(exist_ok=True)
-    get_urls("2003-01-01", "2003-01-07", SAVE_PATH)
