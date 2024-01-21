@@ -8,7 +8,7 @@ import datasets
 
 ALL_SOURCE_LANGS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 TARGET_LANG = 'en'
-INPUT_DIR_ALIGNMENT = Path(r'F:\undl_text_alignment') # align2_poc.py输出
+INPUT_DIR_ALIGNMENT = Path(r'F:\undl_text_alignment_prod') # align2_poc.py输出
 INPUT_ORIGINAL_TEXT_EXPORTED = Path(r'F:\rework_undl_text_local') # 翻译的上一步即文档转文本的输出
 OUTPUT_FILE_INFO = Path(r'F:\undl_text_file_info.jsonl') # 文件信息输出
 OUTPUT_BLOCK_INFO = Path(r'F:\undl_text_block_info.jsonl') # 文件对齐段落块输出，有别于段落，因为有些原文中的段落不完整，这里的block指多个段落拼在一起的整体
@@ -67,19 +67,28 @@ def clean_paragraph(paragraph):
 def gen_func():
     all_align_ds = {}
     all_align_idx = {}
+    all_align_idx_map = {} # rec -> idx
     overall_blocks_count = 0 
     for src_lang in ALL_SOURCE_LANGS:
         all_align_ds[src_lang] = datasets.load_from_disk(INPUT_DIR_ALIGNMENT / f"{src_lang}2{TARGET_LANG}")
         all_align_idx[src_lang] = 0
+        all_align_idx_map[src_lang] = {}
+        dl = len(all_align_ds[src_lang])
+        for idx, row in enumerate(all_align_ds[src_lang]):
+            print(idx, '/', dl)
+            rec = row['record']
+            all_align_idx_map[src_lang].setdefault(rec, []).append(idx)
 
     for idx, row in enumerate(datasets.load_from_disk(INPUT_ORIGINAL_TEXT_EXPORTED)):
         rec = row['record']
+        print(idx, rec)
         dsu = {}
         clean_text = {TARGET_LANG: list(filter(bool, (clean_paragraph(x) for x in re.split('\n\n', row[TARGET_LANG]))))}
         for src_lang, ds in all_align_ds.items():
             clean_text[src_lang] = list(filter(bool, (clean_paragraph(x) for x in re.split('\n\n', row[src_lang]))))
-            idx = all_align_idx[src_lang]
-            while idx < len(ds) and ds[idx]['record'] == rec:
+            # idx = all_align_idx[src_lang]
+            for idx in all_align_idx_map[src_lang].get(rec, []):
+            # while idx < len(ds) and ds[idx]['record'] == rec:
                 edge_set = ds[idx]['clean_para_index_set_pair']
                 src_paras, tgt_paras = edge_set.split('|')
                 src_paras = src_paras.split(',')
@@ -89,8 +98,8 @@ def gen_func():
                     dsu_union(dsu, (src_lang, int(src_para)), (src_lang, int(src_paras[0])))
                 for tgt_para in tgt_paras:
                     dsu_union(dsu, (TARGET_LANG, int(tgt_para)), (TARGET_LANG, int(tgt_paras[0])))
-                idx += 1
-                all_align_idx[src_lang] += 1
+                # idx += 1
+                # all_align_idx[src_lang] += 1
         blocks = {}
         for k, v in dsu.items():
             dsu[k] = dsu_find(dsu, v)
@@ -104,11 +113,11 @@ def gen_func():
                 '低质量段落数': 0,
                 '是否待查文件': False,
                 '是否重复文件': False,
-                '段落': [overall_blocks_count + x for x in range(len(blocks))],
+                # '段落': [overall_blocks_count + x for x in range(len(blocks))],
             }
-            with OUTPUT_FILE_INFO.open('a', encoding='utf-8') as f:
-                f.write(json.dumps(output_file_info, ensure_ascii=False) + '\n')
 
+
+        blk_infos = []
         for idx, keylist in enumerate(blocks.values()):
             para_text_buffer = {}
             keylist.sort()
@@ -142,8 +151,14 @@ def gen_func():
                 'other2_text': '',
             }
             overall_blocks_count += 1
-            with OUTPUT_BLOCK_INFO.open('a', encoding='utf-8') as f:
-                f.write(json.dumps(output_block_info, ensure_ascii=False) + '\n')
+            blk_infos.append(output_block_info)
+        if blk_infos:
+            output_file_info['段落'] = blk_infos
+            with OUTPUT_FILE_INFO.open('a', encoding='utf-8') as f:
+                f.write(json.dumps(output_file_info, ensure_ascii=False) + '\n')
+
+            # with OUTPUT_BLOCK_INFO.open('a', encoding='utf-8') as f:
+                # f.write(json.dumps(output_block_info, ensure_ascii=False) + '\n')
 
 if __name__ == '__main__':
     if os.path.exists(OUTPUT_FILE_INFO):
