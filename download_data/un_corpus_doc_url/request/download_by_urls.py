@@ -3,11 +3,10 @@
 2.自动获取cookie（requests）
 3.下载doc文件
 """
-
+import os
 import argparse as ap
 import threading as th
 import requests as re
-import os
 import time
 import schedule
 from tqdm import tqdm
@@ -213,20 +212,20 @@ def get_tuple(dataset,n): # ————取字典第n条内容建立一个元组
         - tuple_u_n (tuple): 包含第n个条目的URL、代码和语言的元组。
         - None: 如果第n个条目在数据集中的'文号'值为None。
     """
-    url = dataset["train"][n]['链接'] # 取url
-    code = dataset["train"][n]['文号'] # 取文号
+    url = dataset[n]['链接'] # 取url
+    code = dataset[n]['文号'] # 取文号
     if code is None:
         print(f"Warning: '文号' value is None for index {n}")
         return None
 
     code = code.replace("/","_")
     code = code.replace("\\", "_")
-    langue=dataset["train"][n]['语言'] # 取名
+    langue=dataset[n]['语言'] # 取名
     tuple_u_n=(url,code,langue)
     return tuple_u_n
 
 def main(dataset, save_path):
-    print("输出路径",save_path)
+    print("输出路径", save_path)
 
     # 调用下载类
     downloader = Downloader(save_path=save_path)
@@ -246,8 +245,8 @@ def main(dataset, save_path):
     cookie_thread.start()
 
     # 构造一个行数个的任务队列（测试N个）num_row个
-    for i in range(0,2000): 
-        tuple_UN = get_tuple(dataset,i)
+    for i in range(0, len(dataset) - 1): 
+        tuple_UN = get_tuple(dataset, i)
         if tuple_UN is not None:
             queue.put(tuple_UN) # 向任务队列中置入元组
 
