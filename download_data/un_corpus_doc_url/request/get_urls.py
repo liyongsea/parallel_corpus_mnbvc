@@ -22,6 +22,16 @@ def get_all_view_hover_boxs(soup: BeautifulSoup):
     return view_hover_elements
 
 
+#  es ar fr zh en de ru
+language_map = {
+    "ARABIC": "ar",
+    "CHINESE": "zh",
+    "ENGLISH": "en",
+    "FRENCH": "fr",
+    "RUSSIAN": "ru",
+    "SPANISH": "es"
+}
+
 def parse_view_hover_box_file_link(hover_box_element: BeautifulSoup):
     id = hover_box_element.select_one(".odsText.pull-right.flip").text.strip()
     all_languages_elements = hover_box_element.select(".details div.row.noMargin > div")
@@ -29,6 +39,7 @@ def parse_view_hover_box_file_link(hover_box_element: BeautifulSoup):
     url_with_languages = []
     for language_element in all_languages_elements:
         language = language_element.select_one(".odsTitle").text
+        language = language_map.get(language, language)
 
         file_element = language_element.select_one("div:nth-of-type(2)")
 
