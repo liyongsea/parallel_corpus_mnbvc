@@ -23,6 +23,8 @@ import time
 from pywinauto import Application
 from pathlib import Path
 
+import datasets
+
 
 temppath = Path('un_convert_temp')
 temppath.mkdir(exist_ok=True)
@@ -44,6 +46,8 @@ OUT_DOCX_DIR.mkdir(exist_ok=True)
 
 OUT_TEXT_DIR = Path('un_txt_result')
 OUT_TEXT_DIR.mkdir(exist_ok=True)
+
+OUT_DATASET_DIR = Path('un_dataset_result')
 
 DOCX2TEXT_WORKERS = 8
 
@@ -178,6 +182,8 @@ def kill_word():
 def docx2txt_worker(q: mp.Queue):
     while 1:
         ipath, opath = q.get()
+        if ipath is None:
+            return
         if not os.path.exists(opath):
             r = os.system(f"pandoc -i {ipath} -t plain -o {opath} --strip-comments")
             # print('done', outp)
@@ -246,17 +252,11 @@ if __name__ == '__main__':
             p.join()
             kill_word()
             if prvtask is not None:
-                while True:
-                    try:
-                        terr = ERR_DOCX_DIR / re.sub(r'\.\w+$', '.log', prvtask)
-                        terr.parent.mkdir(exist_ok=True)
-                        with open(terr, 'w') as f:
-                            pass
-                        print('timeout submit error:', prvtask)
-                        break
-                    except Exception as e:
-                        print(type(e), e, 'network error, retry')
-                        time.sleep(40)
+                terr = ERR_DOCX_DIR / re.sub(r'\.\w+$', '.log', prvtask)
+                terr.parent.mkdir(exist_ok=True)
+                with open(terr, 'w') as f:
+                    pass
+                print('timeout submit error:', prvtask)
             else:
                 print('catch error without report:', prvtask)
             p = mp.Process(target=save_as_docx, args=(q, qtask))
@@ -275,13 +275,53 @@ if __name__ == '__main__':
 
     for rec in os.listdir(OUT_DOCX_DIR):
         for fn in os.listdir(OUT_DOCX_DIR / rec):
+            (OUT_TEXT_DIR / rec).mkdir(exist_ok=True)
             qd2t.put((
-                os.path.abspath(rec + '/' + fn),
+                (OUT_DOCX_DIR / rec / fn).absolute(),
                 (OUT_TEXT_DIR / rec / re.sub(r'\.\w+$', '.txt', fn)).absolute(),
             ))
 
     for x in ps:
-        qd2t.put(None)
+        qd2t.put((None, None))
     
     for x in ps:
         x.join()
+
+    filename_mapping = {
+        'SPANISH': 'es',
+        'RUSSIAN': 'ru',
+        'FRENCH': 'fr',
+        'GERMAN': 'de',
+        'ARABIC': 'ar',
+        'CHINESE': 'zh',
+        'ENGLISH': 'en',
+        'es': 'es',
+        'ru': 'ru',
+        'fr': 'fr',
+        'de': 'de',
+        'ar': 'ar',
+        'zh': 'zh',
+        'en': 'en',
+    }
+
+    def dataset_generator():
+        for rec in os.listdir(OUT_TEXT_DIR):
+            res = {
+                'ar': '',
+                'zh': '',
+                'en': '',
+                'fr': '',
+                'ru': '',
+                'es': '',
+                'de': '',
+                'record': rec,
+            }
+            for fn in os.listdir(OUT_TEXT_DIR / rec):
+                with open(OUT_TEXT_DIR / rec / fn, 'r', encoding='utf-8') as f:
+                    text = f.read().strip()
+                if text:
+                    res[filename_mapping[fn[:fn.find('-')]]] = text
+            yield res
+    
+    dataset = datasets.Dataset.from_generator(dataset_generator)
+    dataset.save_to_disk(OUT_DATASET_DIR)
