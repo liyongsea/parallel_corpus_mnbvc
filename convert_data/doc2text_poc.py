@@ -4,6 +4,8 @@
 采用COM方式调用WORD进行另存为
 
 本脚本假设用户使用的是中文语言环境的WORD，否则需要改动一些pywinauto的字符串搜索依据
+
+docx转文本需要系统上装有pandoc，并且写入环境变量，即，pandoc应该能够直接命令行调用
 """
 
 from queue import Empty
@@ -39,6 +41,11 @@ ERR_DOCX_DIR.mkdir(exist_ok=True)
 
 OUT_DOCX_DIR = Path('un_convert_result')
 OUT_DOCX_DIR.mkdir(exist_ok=True)
+
+OUT_TEXT_DIR = Path('un_txt_result')
+OUT_TEXT_DIR.mkdir(exist_ok=True)
+
+DOCX2TEXT_WORKERS = 8
 
 ACCEPTED = 201
 OK = 200
@@ -168,14 +175,22 @@ def kill_word():
             p = psutil.Process(pid)
             p.kill()
 
+def docx2txt_worker(q: mp.Queue):
+    while 1:
+        ipath, opath = q.get()
+        if not os.path.exists(opath):
+            r = os.system(f"pandoc -i {ipath} -t plain -o {opath} --strip-comments")
+            # print('done', outp)
+        else:
+            pass
+            # print('skip', outp)
+    # print(r.read())
 
 if __name__ == '__main__':
     kill_word()
     mgr = mp.Manager()
     q = mgr.Queue()
     qtask = mgr.Queue()
-
-
 
     close_window_tries = 0
 
@@ -205,6 +220,7 @@ if __name__ == '__main__':
     p.start()
     prvtask = None
 
+    print('qsiz:', qtask.qsize())
     while qtask.qsize() > 0:
         try:
             status, *args = q.get(timeout=20)
@@ -245,3 +261,27 @@ if __name__ == '__main__':
                 print('catch error without report:', prvtask)
             p = mp.Process(target=save_as_docx, args=(q, qtask))
             p.start()
+
+    p.kill()
+    p.join()
+    kill_word()
+    qd2t = mp.Queue()
+    ps = [
+        mp.Process(target=docx2txt_worker, args=(qd2t,)) for _ in range(DOCX2TEXT_WORKERS)
+    ]
+
+    for x in ps:
+        x.start()
+
+    for rec in os.listdir(OUT_DOCX_DIR):
+        for fn in os.listdir(OUT_DOCX_DIR / rec):
+            qd2t.put((
+                os.path.abspath(rec + '/' + fn),
+                (OUT_TEXT_DIR / rec / re.sub(r'\.\w+$', '.txt', fn)).absolute(),
+            ))
+
+    for x in ps:
+        qd2t.put(None)
+    
+    for x in ps:
+        x.join()
