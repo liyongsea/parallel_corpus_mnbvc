@@ -1,0 +1,18 @@
+[
+    {
+        "script": {
+            "download": "download_data/us_embassy/download_use_en_zh.py",
+            "format_conversion": "download_data/us_embassy/format_conversion.py",
+            "alignment": ""
+        },
+        "identifier": "us_embassy"
+    },
+    {
+        "script": {
+            "download": "download_data/un_corpus_doc_url/request/main.py",
+            "format_conversion": "",
+            "alignment": ""
+        },
+        "identifier": "un_corpus_doc"
+    }
+]

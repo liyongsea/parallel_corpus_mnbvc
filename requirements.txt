@@ -1,6 +1,6 @@
-datasets==2.14.4
-pandas==2.1.0
-transformers==4.20.0
+datasets
+pandas
+transformers
 sentencepiece
 lxml
 wandb

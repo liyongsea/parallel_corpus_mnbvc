@@ -1,0 +1,4 @@
+argostranslate
+requests[socks]
+brotli
+PySocks
