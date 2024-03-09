@@ -24,7 +24,9 @@ pip install -r requirements.txt
     '段落数': 0,
     '去重段落数': 0,
     '低质量段落数': 0,
-    '段落': []
+    '段落': [],
+    '拓展字段': json_str,
+    '时间': str(yyyymmdd)，
 }
 ```
 
@@ -54,5 +56,7 @@ pip install -r requirements.txt
     'th_text': 泰语,
     'other1_text': 小语种1,
     'other2_text': 小语种2,
+    '拓展字段': json_str,
+    '时间': str(yyyymmdd)，
 }
 ```
