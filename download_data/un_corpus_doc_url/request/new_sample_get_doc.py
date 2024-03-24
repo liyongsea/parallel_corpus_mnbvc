@@ -43,27 +43,38 @@ for i in filelist:
                         continue
 
                     url = f'https://documents.un.org/api/symbol/access?s={symbol}&l={l}&t=doc'
-                    resp = requests.get(url)
-                    if resp.status_code == 200:
-                        typ = magic.from_buffer(resp.content, mime=True)
-                        if typ == 'application/pdf':
-                            save_dir = save_filename_pdf
-                        elif typ in (
-                            'application/msword',
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                        ):
-                            save_dir = save_filename_doc
-                        else:
-                            print(f'!!!!!unknown type: {typ}!!!!!')
-                            with open(doc_cache_dir / f'unknowndoc{typ}.bin') as f:
-                                f.write(resp.content)
-                            exit(1)
-                        with open(save_dir, 'wb') as f:
-                            f.write(resp.content)
-                        print('download done:', save_dir)
-                    else:
-                        print(resp)
-                        print(resp.headers)
-                        print(resp.text)
-                        print('!!!!!ERROR!!!!!')
+                    for retry in range(3):
+                        try:
+                            resp = requests.get(url)
+                            if resp.status_code == 200:
+                                typ = magic.from_buffer(resp.content, mime=True)
+                                if typ == 'application/pdf':
+                                    save_dir = save_filename_pdf
+                                elif typ in (
+                                    'application/msword',
+                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                ):
+                                    save_dir = save_filename_doc
+                                else:
+                                    print(f'!!!!!unknown type: {typ}!!!!!')
+                                    with open(doc_cache_dir / f'unknowndoc{typ}.bin') as f:
+                                        f.write(resp.content)
+                                    exit(1)
+                                with open(save_dir, 'wb') as f:
+                                    f.write(resp.content)
+                                print('download done:', save_dir)
+                                break
+                            else:
+                                if retry == 2:
+                                    print(resp)
+                                    print(resp.headers)
+                                    print(resp.text)
+                                    print('!!!!!ERROR!!!!!')
+                                    exit(1)
+                        except Exception as e:
+                            print(e)
+                            print('retry:', retry)
+                            if retry == 2:
+                                print('!!!!!ERROR!!!!!')
+                                exit(1)
         os.rename(fl_cache_dir / i, fl_cache_dir / f'{i}.getdoc_done')

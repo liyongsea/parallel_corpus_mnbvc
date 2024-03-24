@@ -15,6 +15,7 @@ import os
 import re
 import multiprocessing as mp
 import datetime
+import shutil
 import time
 
 import psutil
@@ -230,7 +231,7 @@ if __name__ == '__main__':
     print('todo len:', len(todo))
     while len(todo) > 0:
         try:
-            status, *args = q.get(timeout=20)
+            status, *args = q.get(timeout=40)
             close_window_tries = 0
             if status == ACCEPTED:
                 prvtask = args[0]
@@ -324,6 +325,8 @@ if __name__ == '__main__':
                     'es': '',
                     'de': '',
                     'inner_id': json_info, # 本批脚本自用id
+                    'published': data['docs'][int(idx)]['Publication Date'],
+                    'symbol': data['docs'][int(idx)]['symbol'],
                     'record': data['docs'][int(idx)]['id'],
                 }
 
@@ -339,6 +342,8 @@ if __name__ == '__main__':
                 yield json_info2ds_row.pop(json_info)
     
     dataset = datasets.Dataset.from_generator(dataset_generator)
+
+    shutil.rmtree(OUT_DATASET_DIR, ignore_errors=True)
     dataset.save_to_disk(OUT_DATASET_DIR)
 
     def save_jsonl(row):
