@@ -9,6 +9,8 @@ import const
 fl_cache_dir = const.DOWNLOAD_FILELIST_CACHE_DIR
 doc_cache_dir = const.DOWNLOAD_DOC_CACHE_DIR
 doc_cache_dir.mkdir(exist_ok=True)
+(doc_cache_dir / 'pdf').mkdir(exist_ok=True)
+(doc_cache_dir / 'doc').mkdir(exist_ok=True)
 
 filelist = list(os.listdir(fl_cache_dir))
 
@@ -34,8 +36,8 @@ for i in filelist:
                 lang = lang.lower()[:2]
                 if lang in LANGMAP:
                     l = LANGMAP[lang]
-                    save_filename_pdf = doc_cache_dir / f"{i.removesuffix('.json')}-{idx}={lang}.pdf"
-                    save_filename_doc = doc_cache_dir / f"{i.removesuffix('.json')}-{idx}={lang}.doc"
+                    save_filename_pdf = doc_cache_dir / 'pdf' / f"{i.removesuffix('.json')}-{idx}={lang}.pdf"
+                    save_filename_doc = doc_cache_dir / 'doc' / f"{i.removesuffix('.json')}-{idx}={lang}.doc"
                     if save_filename_pdf.exists() or save_filename_doc.exists():
                         print('skip:', save_filename_pdf)
                         continue
@@ -45,18 +47,17 @@ for i in filelist:
                     if resp.status_code == 200:
                         typ = magic.from_buffer(resp.content, mime=True)
                         if typ == 'application/pdf':
-                            ext = 'pdf'
+                            save_dir = save_filename_pdf
                         elif typ in (
                             'application/msword',
                             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
                         ):
-                            ext = 'doc'
+                            save_dir = save_filename_doc
                         else:
                             print(f'!!!!!unknown type: {typ}!!!!!')
                             with open(doc_cache_dir / f'unknowndoc{typ}.bin') as f:
                                 f.write(resp.content)
                             exit(1)
-                        save_dir = doc_cache_dir / f"{i.removesuffix('.json')}-{idx}={lang}.{ext}"
                         with open(save_dir, 'wb') as f:
                             f.write(resp.content)
                         print('download done:', save_dir)
