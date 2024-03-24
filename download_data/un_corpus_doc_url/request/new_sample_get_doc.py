@@ -77,4 +77,4 @@ for i in filelist:
                             if retry == 2:
                                 print('!!!!!ERROR!!!!!')
                                 exit(1)
-        os.rename(fl_cache_dir / i, fl_cache_dir / f'{i}.getdoc_done')
+        # os.rename(fl_cache_dir / i, fl_cache_dir / f'{i}.getdoc_done')

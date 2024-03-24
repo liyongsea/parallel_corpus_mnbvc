@@ -48,8 +48,7 @@ OUT_TEXT_DIR = const.CONVERT_TEXT_CACHE_DIR
 OUT_TEXT_DIR.mkdir(exist_ok=True)
 
 OUT_DATASET_DIR = const.CONVERT_DATASET_CACHE_DIR
-FILEWISE_JSONL_DIR = const.FILEWISE_JSONL_OUTPUT_DIR
-FILEWISE_JSONL_DIR.mkdir(exist_ok=True)
+FILEWISE_JSONL = const.FILEWISE_JSONL_OUTPUT_DIR
 
 DOCX2TEXT_WORKERS = 8
 
@@ -384,6 +383,8 @@ if __name__ == '__main__':
             '拓展字段': r'{}',
             '时间': datetime.datetime.now().strftime("%Y%m%d")
         }
-        with open(FILEWISE_JSONL_DIR / (row['inner_id'] + '.jsonl'), 'w', encoding='utf-8') as f:
-            json.dump(template, f, ensure_ascii=False)
+        with FILEWISE_JSONL.open('a', encoding='utf-8') as f:
+            f.write(json.dumps(template, ensure_ascii=False) + '\n')
+    if FILEWISE_JSONL.exists():
+        FILEWISE_JSONL.unlink()
     dataset.map(save_jsonl)

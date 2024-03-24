@@ -16,4 +16,5 @@ TRANSLATION_OUTPUT_DIR = WORK_DIR / 'trresult_dataset'
 
 ALIGN_OUTPUT_DIR = WORK_DIR / 'alresult_dataset'
 
-FILEWISE_JSONL_OUTPUT_DIR = WORK_DIR / 'filewise_result_jsonl'
+FILEWISE_JSONL_OUTPUT_DIR = WORK_DIR / 'filewise_result.jsonl'
+BLOCKWISE_JSONL_OUTPUT_DIR = WORK_DIR / 'blockwise_result.jsonl' # 单文件
