@@ -102,7 +102,7 @@ def gen_func():
                 # idx += 1
                 # all_align_idx[src_lang] += 1
         blocks = {}
-        for k, v in dsu.items():
+        for k, v in dsu.items(): # 这一步中，只有单语种的文件会因为不会有连边，而被舍弃，考虑到这部分数据对于平行语料来说没有用，不打算挽留这些数据
             dsu[k] = dsu_find(dsu, v)
             blocks.setdefault(dsu[k], []).append(k)
         
