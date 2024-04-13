@@ -41,7 +41,7 @@ python pipeline_poc.py [项目名称] other-args...
 
 对于每一个文件，他的json结构层次如下：
 
-```json
+```
 {
     '文件名': '文件.txt',
     '是否待查文件': False,
@@ -51,13 +51,13 @@ python pipeline_poc.py [项目名称] other-args...
     '低质量段落数': 0,
     '段落': [],
     '拓展字段': json_str,
-    '时间': str(yyyymmdd)，
+    '时间': str(yyyymmdd)
 }
 ```
 
 将每一行为一个段落，段落的json结构层次如下：
 
-```json
+```
 {
     '行号': line_number,
     '是否重复': False,
@@ -85,6 +85,6 @@ python pipeline_poc.py [项目名称] other-args...
     'other1_text': 小语种1,
     'other2_text': 小语种2,
     '拓展字段': json_str,
-    '时间': str(yyyymmdd)，
+    '时间': str(yyyymmdd)
 }
 ```
