@@ -13,15 +13,6 @@ python pipeline_poc.py [项目名称] other-args...
 
 #### 目前可以运行的项目:
 
-- un_corpus_doc
-    - 美国联合国doc文档数据
-    - params:
-        - "--start_time" 开始时间
-        - "--end_time" 结束时间
-        - "-o","--output_path" 保存文件的路径
-    - 例子: ```python pipeline_poc.py "un_corpus_doc" --start_time="2023-01-01" --end_time="2023-01-11"```
-    - 注意: 由于对方网站的ssl版本过低，所以可能需要以下命令```export OPENSSL_CONF=.../parallel_corpus_mnbvc/openssl.cnf && 下载命令```
-
 - us_embassy
     - 美国大使馆
     - params: 
@@ -34,8 +25,8 @@ python pipeline_poc.py [项目名称] other-args...
 ### 添加新的语料数据集的方法
 可以整理成这个格式
 - 代码做成PR到这个仓库，每个项目在根目录下创建一个项目名字，譬如联合国平行语料un_parallel_corpus 
-- 跟新一下wiki
-- 整理好的数据用[格式检查](https://wiki.mnbvc.org/doku.php/%E7%8E%B0%E6%9C%89%E8%AF%AD%E6%96%99%E6%A0%BC%E5%BC%8F)工具来来检查
+- 更新一下wiki
+- 整理好的数据用[DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)工具来来检查
 
 ### 输出的jsonl格式说明
 
@@ -50,7 +41,7 @@ python pipeline_poc.py [项目名称] other-args...
     '去重段落数': 0,
     '低质量段落数': 0,
     '段落': [],
-    '拓展字段': json_str,
+    '扩展字段': json_str,
     '时间': str(yyyymmdd)
 }
 ```
@@ -64,7 +55,6 @@ python pipeline_poc.py [项目名称] other-args...
     '是否跨文件重复': False,
     'zh_text_md5': zh_text_md5,
     'zh_text': 中文,
-    'cht_text': 繁体中文,
     'en_text': 英语,
     'ar_text': 阿拉伯语,
     'nl_text': 荷兰语,
@@ -82,9 +72,14 @@ python pipeline_poc.py [项目名称] other-args...
     'th_text': 泰语,
     'id_text': 印尼语,
     'vi_text': 越南语,
+    'cht_text': 繁体中文,
     'other1_text': 小语种1,
     'other2_text': 小语种2,
-    '拓展字段': json_str,
-    '时间': str(yyyymmdd)
+    '扩展字段': json_str
 }
+```
+
+一份样例语料数据:
+```
+{"文件名": "Terraria-workshop-localization_test2.jsonl", "是否待查文件": false, "是否重复文件": false, "段落数": 17944, "去重段落数": 0, "低质量段落数": 0, "段落": [{"行号": 1, "是否重复": false, "是否跨文件重复": false, "it_text":"","zh_text": "正在生成海洋沙", "en_text": "Generating ocean sand", "ar_text": "", "nl_text": "", "de_text": "", "eo_text": "", "fr_text": "Génération du sable de l'océan", "he_text": "", "it_text": "", "ja_text": "", "pt_text": "Gerando areia do oceano", "ru_text": "Создание песка в океане", "es_text": "", "sv_text": "", "ko_text": "", "th_text": "", "other1_text": "", "other2_text": "", "id_text":"","cht_text":"","vi_text":"","扩展字段": "{}", "时间": "20240316", "hu_text": "Tengeri homok elhelyezése", "uk_text": "Генерація океанського піску", "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2"}], "扩展字段": "{}", "时间": "20240316"}
 ```
