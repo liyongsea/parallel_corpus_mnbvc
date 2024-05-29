@@ -138,12 +138,12 @@ python pipeline_poc.py [项目名称] other-args...
                 \"other_texts\": {
                     \"cs\": \"Generování mořského písku\",
                     \"pl\": \"Generowanie piasku morskiego\",
+                    \"hu\": \"Tengeri homok elhelyezése\",
+                    \"uk\": \"Генерація океанського піску\",
                     \"tr\": \"Okyanus kumu üretme\"
                 },
             }",
             "时间": "20240316",
-            "hu_text": "Tengeri homok elhelyezése",
-            "uk_text": "Генерація океанського піску",
             "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2"
         }
     ],
@@ -151,6 +151,8 @@ python pipeline_poc.py [项目名称] other-args...
         \"other_texts_iso_map\": {
             \"cs\": \"捷克语\",
             \"pl\": \"波兰语\",
+            \"hu\": \"匈牙利语\",
+            \"uk\": \"乌克兰语\",
             \"tr\": \"土耳其语\"
         }
     }",
