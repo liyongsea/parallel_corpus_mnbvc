@@ -87,6 +87,9 @@ python pipeline_poc.py [项目名称] other-args...
 
 文件以及段落的`扩展字段`为 json 字符串，目前的约定为:
 
+
+**段落**
+
 ```
 {
     other_texts: {
@@ -96,6 +99,19 @@ python pipeline_poc.py [项目名称] other-args...
     ...
 }
 ```
+
+**文件**
+
+```
+{
+    other_texts_iso_map: {
+        {lang1_iso}: "语种1",
+        {lang2_iso}: "语种2"
+    }
+}
+```
+
+如果没有别的需要收录的语种，并且也没有其它信息需要用扩展字段记录时，扩展字段这里约定填{}来保证json.loads不会出问题。
 
 一份样例语料数据（注意，扩展字段直接用json.dumps(obj,ensure_ascii=False)生成，故会带反斜杠将内部字符串的双引号转义）:
 
