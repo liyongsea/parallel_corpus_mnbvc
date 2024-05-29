@@ -43,19 +43,21 @@ python pipeline_poc.py [项目名称] other-args...
     '去重段落数': 0,
     '低质量段落数': 0,
     '段落': [],
-    '扩展字段': json_str,
+    '扩展字段': 任意字符串，建议为json格式，但也可用直接用自然语言写注释，比如用于描述内层段落级别的扩展字段,
     '时间': str(yyyymmdd)
 }
 ```
 
 将每一行为一个段落，段落的 json 结构层次如下：
 
+**注意：**所有语种字段的双字母缩写优先参考[ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)的定义，并且优先填写下文所注的段落级主要字段，如果没有，则根据iso双字母简写填入扩展字段中。如果所收录语言并不在 iso 639-1 双字母简写表中，请自己起一个不与其他双字母简写有冲突的key名写到扩展字段中，并将其key名和对应的语种作为注释写到文件级扩展字段中。
+
 ```
 {
-    '行号': line_number,
+    '行号': 如果源文件有行号信息，可以记在此处，否则取从1开始递增的值，尽量保证每个段落的行号都不同,
     '是否重复': False,
     '是否跨文件重复': False,
-    'zh_text_md5': zh_text_md5,
+    'zh_text_md5': 十六进制的中文语句的md5，可以直接用hashlib.md5(zh_text).hexdigest()得到,
     'zh_text': 中文,
     'en_text': 英语,
     'ar_text': 阿拉伯语,
@@ -75,17 +77,15 @@ python pipeline_poc.py [项目名称] other-args...
     'id_text': 印尼语,
     'vi_text': 越南语,
     'cht_text': 繁体中文,
-    'other1_text': 小语种1,
-    'other2_text': 小语种2,
-    '扩展字段': json_str
+    'other1_text': 原小语种1，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
+    'other2_text': 原小语种2，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
+    '扩展字段': json格式字符串，详细约定见下文
 }
 ```
 
-`other1_text`、`other2_text` 必须存在，但是建议为空字符串，所有的其他语言可放到`扩展字段`中.
+`other1_text`、`other2_text` 必须存在，但是建议为空字符串，所有未在上述字段中出现的其他语言可放到`扩展字段`中.
 
-各个语言 iso 简写参考: [wiki](#https://wiki.mnbvc.org/doku.php/%E7%8E%B0%E6%9C%89%E8%AF%AD%E6%96%99%E6%A0%BC%E5%BC%8F) 、[ISO_639-1](#https://zh.wikipedia.org/wiki/ISO_639-1), 对于上述网站同时出现的 iso，优先使用`wiki`.
-
-文件以及段落的`扩展字段`为 json 字符串，段落参考:
+文件以及段落的`扩展字段`为 json 字符串，目前的约定为:
 
 ```
 {
@@ -97,7 +97,7 @@ python pipeline_poc.py [项目名称] other-args...
 }
 ```
 
-一份样例语料数据:
+一份样例语料数据（注意，扩展字段直接用json.dumps(obj,ensure_ascii=False)生成，故会带反斜杠将内部字符串的双引号转义）:
 
 ```
 {
@@ -135,10 +135,10 @@ python pipeline_poc.py [项目名称] other-args...
             "cht_text":"",
             "vi_text":"",
             "扩展字段": "{
-                other_texts: {
-                    cs: "Generování mořského písku",
-                    pl: "Generowanie piasku morskiego",
-                    tr: "Okyanus kumu üretme"
+                \"other_texts\": {
+                    \"cs\": \"Generování mořského písku\",
+                    \"pl\": \"Generowanie piasku morskiego\",
+                    \"tr\": \"Okyanus kumu üretme\"
                 },
             }",
             "时间": "20240316",
@@ -148,11 +148,12 @@ python pipeline_poc.py [项目名称] other-args...
         }
     ],
     "扩展字段": "{
-        other_texts_iso_map: {
-            cs: "捷克语",
-            pl: "波兰语",
-            tr: "土耳其语"
+        \"other_texts_iso_map\": {
+            \"cs\": \"捷克语\",
+            \"pl\": \"波兰语\",
+            \"tr\": \"土耳其语\"
         }
     }",
-    "时间": "20240316"}
+    "时间": "20240316"
+}
 ```
