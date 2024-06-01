@@ -137,7 +137,6 @@ python pipeline_poc.py [项目名称] other-args...
             "eo_text": "",
             "fr_text": "Génération du sable de l'océan",
             "he_text": "",
-            "it_text": "",
             "ja_text": "",
             "pt_text": "Gerando areia do oceano",
             "ru_text": "Создание песка в океане",
