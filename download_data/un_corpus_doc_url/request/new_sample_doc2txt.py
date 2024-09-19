@@ -17,6 +17,7 @@ import multiprocessing as mp
 import datetime
 import shutil
 import time
+from typing import List, Union
 
 import psutil
 from pywinauto import Application # pywinauto
@@ -46,6 +47,8 @@ OUT_DOCX_DIR.mkdir(exist_ok=True)
 
 OUT_TEXT_DIR = const.CONVERT_TEXT_CACHE_DIR
 OUT_TEXT_DIR.mkdir(exist_ok=True)
+
+const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR.mkdir(exist_ok=True)
 
 OUT_DATASET_DIR = const.CONVERT_DATASET_CACHE_DIR
 FILEWISE_JSONL = const.FILEWISE_JSONL_OUTPUT_DIR
@@ -201,7 +204,7 @@ if __name__ == '__main__':
 
     close_window_tries = 0
 
-    todo = set()
+    todo = set() # doc另存为docx的任务表，会自动从上一次没完成的任务继续
     for rec in os.listdir(INPUT_DIR):
         if rec.startswith('~$'):
             continue
@@ -269,6 +272,8 @@ if __name__ == '__main__':
     p.kill()
     p.join()
     kill_word()
+
+    # 转docx完毕，docx转txt开始
     qd2t = mp.Queue()
     ps = [
         mp.Process(target=docx2txt_worker, args=(qd2t,)) for _ in range(DOCX2TEXT_WORKERS)
@@ -278,7 +283,7 @@ if __name__ == '__main__':
         x.start()
 
     for rec in os.listdir(OUT_DOCX_DIR):
-        if not (OUT_TEXT_DIR / re.sub(r'\.\w+$', '.txt', rec)).exists():
+        if not (OUT_TEXT_DIR / re.sub(r'\.\w+$', '.txt', rec)).exists(): # 跳过已经做过了的任务
             qd2t.put((
                 (OUT_DOCX_DIR / rec).absolute(),
                 (OUT_TEXT_DIR / re.sub(r'\.\w+$', '.txt', rec)).absolute(),
@@ -302,89 +307,160 @@ if __name__ == '__main__':
         'ot': 'de', # other先默认是德语
     }
 
-    for i in os.listdir(OUT_TEXT_DIR):
-        print(i)
-
-    def dataset_generator():
-        json_info2langs = {}
-        json_info2ds_row = {}
-        for rec in os.listdir(OUT_TEXT_DIR): # sample: 2023-2023_1-8=ar.txt
-            json_info, lang = rec.removesuffix('.txt').split('=')
-            json_info2langs.setdefault(json_info, set()).add(lang)
+    def markdown_like_table_detector(text: str) -> Union[None, List[str]]:
+        """
+        输入：
+        +------+----------------------------------------------------+------+---+
+        | 章次 |                                                    |      | 页 |
+        |      |                                                    |      | 次 |
+        +------+----------------------------------------------------+------+---+
+        |   送 |                                                    |      | 5 |
+        | 文函 |                                                    |      |   |
+        | 和证 |                                                    |      |   |
+        | 明函 |                                                    |      |   |
+        +------+----------------------------------------------------+------+---+
+        输出：
+        ["章次  页次","  送文函和证明函  5"]
         
-            json_fn, idx = json_info.rsplit('-', 1)
-            with open(const.DOWNLOAD_FILELIST_CACHE_DIR / f'{json_fn}.json', 'r') as f:
-                data = json.load(f)
-                json_info2ds_row[json_info] = {
-                    'ar': '',
-                    'zh': '',
-                    'en': '',
-                    'fr': '',
-                    'ru': '',
-                    'es': '',
-                    'de': '',
-                    'inner_id': json_info, # 本批脚本自用id
-                    'published': data['docs'][int(idx)]['Publication Date'],
-                    'symbol': data['docs'][int(idx)]['symbol'],
-                    'record': data['docs'][int(idx)]['id'],
-                }
+        """
+        text = text.strip()
+        if text == '': return None
+        table_spliter_pattern = re.compile(r'^\s*\+[-+=]+\+$')
+        table_column_count = None
+        contents = []
+        content_temp_buf = []
+        for line in text.splitlines():
+            line = line.strip() # 一般来说不会有头尾空格，但是这里还是写上
+            if table_spliter_pattern.match(line):
+                if table_column_count is not None:
+                    table_width = line.count('+') - 1
+                    if table_width != table_column_count:
+                        return None
+                    # 遇到+------+----------------------------------------------------+------+---+行，把content_temp_buf的东西按整行塞进contents里
+                    temp_row = []
+                    for idx, grid_content_list in enumerate(content_temp_buf):
+                        joined_str = ''.join(grid_content_list).strip()
+                        temp_row.append(joined_str)
+                        grid_content_list.clear()
+                    contents.append(' '.join(temp_row))
+                else:
+                    # 此处初始化 table_column_count，如果遇到之后和这个不等的，证明不是合法表格，直接return None
+                    table_column_count = line.count('+') - 1
+                    content_temp_buf = [[] for _ in range(table_column_count)]
+            elif table_column_count is not None:
+                if line[0] == line[-1] == '|' and line.count('|') - 1 == table_column_count:
+                    # 列数相等，往temp_buf里对应的列桶塞东西
+                    for idx, column_text in enumerate(line[1:-1].split('|')):
+                        content_temp_buf[idx].append(column_text.removeprefix(' ').removesuffix(' ')) # 只删除头尾一个，避免把有意义的空格删了
+                else:
+                    return None
 
-        for rec in os.listdir(OUT_TEXT_DIR): # sample: 2023-2023_1-8=ar.txt
-            json_info, lang = rec.removesuffix('.txt').split('=')
-            json_info2langs[json_info].discard(lang)
+        return (contents if table_column_count is not None else None)
 
-            lang = filename_mapping[lang]
-            with open(OUT_TEXT_DIR / rec, 'r', encoding='utf-8') as f:
-                json_info2ds_row[json_info][lang] = f.read()
+    affected_files = set()
+    for i in list(os.listdir(OUT_TEXT_DIR)):
+        if i.endswith('.t2'):
+            # os.remove(OUT_TEXT_DIR / i)
+            continue
+        text_path = OUT_TEXT_DIR / i
+        print('scanning',i)
+        with open(text_path, 'r', encoding='utf-8') as f:
+            file_raw = f.read()
+        real_file_paras = []
+        has_grid = False
+        for para in file_raw.split('\n\n'):
+            detect_res = markdown_like_table_detector(para)
+            if detect_res is not None:
+                if i not in affected_files:
+                    affected_files.add(i)
+                    print('found grid',i)
+                real_file_paras.extend(detect_res)
+            else:
+                real_file_paras.append(para)
+        # with open(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / i, 'w', encoding='utf-8') as f:
+        with open(OUT_TEXT_DIR / f"{i}.t2", 'w', encoding='utf-8') as f:
+            f.write('\n\n'.join(real_file_paras))
 
-            if not json_info2langs[json_info]:
-                yield json_info2ds_row.pop(json_info)
+    # def dataset_generator():
+    #     json_info2langs = {}
+    #     json_info2ds_row = {}
+    #     for rec in os.listdir(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR): # sample: 2023-2023_1-8=ar.txt
+    #         json_info, lang = rec.removesuffix('.txt').split('=')
+    #         json_info2langs.setdefault(json_info, set()).add(lang)
+        
+    #         json_fn, idx = json_info.rsplit('-', 1)
+    #         with open(const.DOWNLOAD_FILELIST_CACHE_DIR / f'{json_fn}.json', 'r') as f:
+    #             data = json.load(f)
+    #             json_info2ds_row[json_info] = {
+    #                 'ar': '',
+    #                 'zh': '',
+    #                 'en': '',
+    #                 'fr': '',
+    #                 'ru': '',
+    #                 'es': '',
+    #                 'de': '',
+    #                 'inner_id': json_info, # 本批脚本自用id
+    #                 'published': data['docs'][int(idx)]['Publication Date'],
+    #                 'symbol': data['docs'][int(idx)]['symbol'],
+    #                 'record': data['docs'][int(idx)]['id'],
+    #             }
+
+    #     for rec in os.listdir(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR): # sample: 2023-2023_1-8=ar.txt
+    #         json_info, lang = rec.removesuffix('.txt').split('=')
+    #         json_info2langs[json_info].discard(lang)
+
+    #         lang = filename_mapping[lang]
+    #         with open(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / rec, 'r', encoding='utf-8') as f:
+    #             json_info2ds_row[json_info][lang] = f.read()
+
+    #         if not json_info2langs[json_info]:
+    #             yield json_info2ds_row.pop(json_info)
     
-    dataset = datasets.Dataset.from_generator(dataset_generator)
+    # dataset = datasets.Dataset.from_generator(dataset_generator)
 
-    shutil.rmtree(OUT_DATASET_DIR, ignore_errors=True)
-    dataset.save_to_disk(OUT_DATASET_DIR)
+    # shutil.rmtree(OUT_DATASET_DIR, ignore_errors=True)
+    # dataset.save_to_disk(OUT_DATASET_DIR)
 
-    def save_jsonl(row):
-        fn = row['record']
-        template = {
-            '文件名': fn,
-            '是否待查文件': False,
-            '是否重复文件': False,
-            '段落数': 1,
-            '去重段落数': 0,
-            '低质量段落数': 0,
-            '段落': {
-                '行号': 1,
-                '是否重复': False,
-                '是否跨文件重复': False,
-                'zh_text_md5': hashlib.md5(row['zh'].encode('utf-8')).hexdigest(),
-                'zh_text': row['zh'],
-                'en_text': row['en'],
-                'ar_text': row['ar'],
-                'nl_text': '',
-                'de_text': row['de'],
-                'eo_text': '',
-                'fr_text': row['fr'],
-                'he_text': '',
-                'it_text': '',
-                'ja_text': '',
-                'pt_text': '',
-                'ru_text': row['ru'],
-                'es_text': row['es'],
-                'sv_text': '',
-                'ko_text': '',
-                'th_text': '',
-                'other1_text': '',
-                'other2_text': '',
-                '拓展字段': r'{}',
-                '时间': datetime.datetime.now().strftime("%Y%m%d")
-            },
-            '拓展字段': r'{}',
-            '时间': datetime.datetime.now().strftime("%Y%m%d")
-        }
-        with FILEWISE_JSONL.open('a', encoding='utf-8') as f:
-            f.write(json.dumps(template, ensure_ascii=False) + '\n')
-    if FILEWISE_JSONL.exists():
-        FILEWISE_JSONL.unlink()
-    dataset.map(save_jsonl)
+    # def save_jsonl(row):
+    #     fn = row['record']
+    #     template = {
+    #         '文件名': fn,
+    #         '是否待查文件': False,
+    #         '是否重复文件': False,
+    #         '段落数': 1,
+    #         '去重段落数': 0,
+    #         '低质量段落数': 0,
+    #         '段落': {
+    #             '行号': 1,
+    #             '是否重复': False,
+    #             '是否跨文件重复': False,
+    #             'zh_text_md5': hashlib.md5(row['zh'].encode('utf-8')).hexdigest(),
+    #             'zh_text': row['zh'],
+    #             'en_text': row['en'],
+    #             'ar_text': row['ar'],
+    #             'nl_text': '',
+    #             'de_text': row['de'],
+    #             'eo_text': '',
+    #             'fr_text': row['fr'],
+    #             'he_text': '',
+    #             'it_text': '',
+    #             'ja_text': '',
+    #             'pt_text': '',
+    #             'ru_text': row['ru'],
+    #             'es_text': row['es'],
+    #             'sv_text': '',
+    #             'ko_text': '',
+    #             'th_text': '',
+    #             'other1_text': '',
+    #             'other2_text': '',
+    #             '拓展字段': r'{}',
+    #             '时间': datetime.datetime.now().strftime("%Y%m%d")
+    #         },
+    #         '拓展字段': r'{}',
+    #         '时间': datetime.datetime.now().strftime("%Y%m%d")
+    #     }
+    #     with FILEWISE_JSONL.open('a', encoding='utf-8') as f:
+    #         f.write(json.dumps(template, ensure_ascii=False) + '\n')
+    # if FILEWISE_JSONL.exists():
+    #     FILEWISE_JSONL.unlink()
+    # dataset.map(save_jsonl)
