@@ -22,7 +22,6 @@ INSTALLED = {}
 ALL_SOURCE_LANGS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 TARGET_LANG = 'en'
 TEMPDIR_TRANSLATION = const.TRANSLATION_CACHE_DIR # 中间翻译暂存，支持重启
-OUTPUT_DIR_TRANSLATION = const.TRANSLATION_OUTPUT_DIR # datasets输出
 
 def clean_paragraph(paragraph):
     lines = paragraph.split('\n')
