@@ -214,7 +214,8 @@ def validate_line_length(lines: List[str], ref_spliter: str) -> bool:
             continue
         if line[:trailing_space_cnt] != trailing_spaces:
             return False
-        if line_width(line) > len(ref_spliter) + max(8, len(ref_spliter) * 0.1):
+        # if line_width(line) > len(ref_spliter) + max(8, len(ref_spliter) * 0.1):
+        if line_width(line) > len(ref_spliter):
             return False
     return True
 
@@ -642,7 +643,14 @@ def multiline_table_detector(lines: List[str], _log_filename: str) -> Union[None
                             col_bufs[slot][-1].append(c)
                         for cidx, col_list in enumerate(col_bufs):
                             col_list[-1] = ''.join(col_list[-1]).strip()
-
+                    # 末尾处理
+                    temp_row = []
+                    for cidx, col_list in enumerate(col_bufs):
+                        temp_row.append(' '.join(col_list).strip())
+                        col_list.clear()
+                    if temp_row and not all([x == '' for x in temp_row]): # 如果这一行不是空行，则加入结果集
+                        row_text = '  '.join(temp_row)
+                        converted_text_buf.append(row_text)
                 mttb_map.append((header_ptr, idx, '\n\n'.join([''] + converted_text_buf + [''])))
                 converted_text_buf.clear()
                 header_ptr = -1
@@ -687,7 +695,10 @@ def multiline_table_without_spliter_detector(lines: List[str], _log_filename: st
             trailing_space_cnt = line.find('-')
             trailing_spaces = line[:trailing_space_cnt]
             assert trailing_spaces.count(' ') == trailing_space_cnt
-            is_valid = True
+            if not validate_line_length(lines[header_ptr+1:idx], line):
+                header_ptr = idx
+                converted_text_buf.clear()
+                continue
             col_bufs = [[] for _ in col_widths]
 
             for line_idx in range(header_ptr+1, idx): # 对每一行做更严格的校验
@@ -703,12 +714,6 @@ def multiline_table_without_spliter_detector(lines: List[str], _log_filename: st
                         row_text = '  '.join(temp_row)
                         converted_text_buf.append(row_text)
                 else: # 有内容
-                    if cur_line[:trailing_space_cnt] != trailing_spaces:
-                        is_valid = False
-                        break
-                    if line_width(cur_line) > len(line) + max(8, len(line) * 0.1):
-                        is_valid = False
-                        break
                     coffset = 0
                     for cidx, col_list in enumerate(col_bufs):
                         col_list.append([])
@@ -723,14 +728,17 @@ def multiline_table_without_spliter_detector(lines: List[str], _log_filename: st
                         col_bufs[slot][-1].append(c)
                     for cidx, col_list in enumerate(col_bufs):
                         col_list[-1] = ''.join(col_list[-1]).strip()
-
-            if not is_valid:
-                header_ptr = idx
-                converted_text_buf.clear()
-            else:
-                mttb_map.append((header_ptr, idx, '\n\n'.join([''] + converted_text_buf + [''])))
-                converted_text_buf.clear()
-                header_ptr = -1
+                # 末尾处理
+                temp_row = []
+                for cidx, col_list in enumerate(col_bufs):
+                    temp_row.append(' '.join(col_list).strip())
+                    col_list.clear()
+                if temp_row and not all([x == '' for x in temp_row]): # 如果这一行不是空行，则加入结果集
+                    row_text = '  '.join(temp_row)
+                    converted_text_buf.append(row_text)
+            mttb_map.append((header_ptr, idx, '\n\n'.join([''] + converted_text_buf + [''])))
+            converted_text_buf.clear()
+            header_ptr = -1
     if not mttb_map: return None
     return construct_out(mttb_map, lines, _log_filename, const.DBG_LOG_OUTPUT_FILE3)
 
@@ -893,7 +901,7 @@ if __name__ == '__main__':
     all_file_ctr = 0
 
     for i in list(os.listdir(OUT_TEXT_DIR)):
-    # for i in ['2023-2023_10-6=es.txt']:
+    # for i in ['2023-2023_103-65=en.txt']:
     # for i in ['2023-2023_100-17=fr.txt']:
         if i.endswith('.t2'):
             os.remove(OUT_TEXT_DIR / i)
@@ -949,10 +957,11 @@ if __name__ == '__main__':
 
             lang = filename_mapping[lang]
             with open(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / rec, 'r', encoding='utf-8') as f:
+                print("READING", const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / rec)
                 fcontent = f.read()
-                if fcontent.count('\u200e') > 0:
-                    print(f"{rec} has zero-width non-joiner", fcontent.count('\u200e'),const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / rec)
-                    raise NameError(f"{rec} has zero-width non-joiner", fcontent.count('\u200e'))
+                # if fcontent.count('\u200e') > 0:
+                    # print(f"{rec} has zero-width non-joiner", fcontent.count('\u200e'),const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / rec)
+                    # raise NameError(f"{rec} has zero-width non-joiner", fcontent.count('\u200e'))
                     # exit(1)
                 json_info2ds_row[json_info][lang] = fcontent
 
@@ -1005,5 +1014,6 @@ if __name__ == '__main__':
         with FILEWISE_JSONL.open('a', encoding='utf-8') as f:
             f.write(json.dumps(template, ensure_ascii=False) + '\n')
     if FILEWISE_JSONL.exists():
-        FILEWISE_JSONL.unlink()
+        os.remove(FILEWISE_JSONL)
+        # FILEWISE_JSONL.unlink()
     dataset.map(save_jsonl)
