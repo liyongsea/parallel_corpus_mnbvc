@@ -407,11 +407,13 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
     """
     text = text.strip()
     if text == '': return None
+    pivot_line_idx = 0
     table_column_count = None
     contents = []
     content_temp_buf = []
     plus_pos = []
-    for lineidx, line in enumerate(text.splitlines()):
+    textlines = text.splitlines()
+    for lineidx, line in enumerate(textlines):
         line = line.strip() # 一般来说不会有头尾空格，但是这里还是写上
         if table_spliter_pattern.match(line):
             if table_column_count is not None:
@@ -428,6 +430,7 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
                 contents.append('  '.join(temp_row))
             else:
                 # 此处初始化 table_column_count，如果遇到之后和这个不等的，证明不是合法表格，直接return None
+                pivot_line_idx = lineidx # 调试打印用
                 table_column_count = line.count('+') - 1
                 content_temp_buf = [[] for _ in range(table_column_count)]
                 for cidx, char in enumerate(line):
@@ -451,6 +454,10 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
                         gbuf.append(char)
                     cptr += char_wide(char)
                 if unmatched_plus_pos:
+                    print(unmatched_plus_pos, plus_pos)
+                    print(len(textlines[pivot_line_idx]), len(line), line_width(line))
+                    for cidx, char in enumerate(line):
+                        print(cidx, char_wide(char), unicodedata.combining(char), unicodedata.east_asian_width(char), hex(ord(char)), ord(char), char.encode('utf-8'), char)
                     return None # 不是合法表格
                 # splited_grid_content.pop()
                 splited_grid_content.pop(0)
@@ -465,15 +472,16 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
             f.write(f'<{_log_filename}>\n'+ text + '\n\n') # 打下日志人肉看一下
     return (contents if table_column_count is not None else None)
 
-ARABIC_ZERO_CHARS_ORD = { # east_asian_width 是 N，pandoc 3.1.1 和 3.4 都认这一部分阿拉伯字符的宽度是0
+ZERO_CHARS_ORD = { # east_asian_width 是 N，pandoc 3.1.1 和 3.4 都认这一部分阿拉伯字符的宽度是0
     # 77,
 
     # 西班牙语
     769,
 
     # 阿拉伯语
-    1574,
-    1600,
+    # 1574,
+    # 1600,
+    # 1610,
     1611,
     1613,
     1614,
@@ -481,12 +489,48 @@ ARABIC_ZERO_CHARS_ORD = { # east_asian_width 是 N，pandoc 3.1.1 和 3.4 都认
     1615,
     1617,
     1618,
+
+    # 8288, # 0x2060
+    # 0x202c,
 }
 
-def char_wide(char): # 字宽，观察发现输出中文要占2个字符
-    if ord(char) in ARABIC_ZERO_CHARS_ORD:
+def char_wide(c, first_char=False): # 实际上暂时没有用到first_char
+    codepoint = ord(c)
+    # if codepoint in ZERO_CHARS_ORD:
+        # return 0
+    
+    # 控制字符（0x0000 - 0x001F，0x007F - 0x009F）
+    if codepoint <= 0x001F or (0x007F <= codepoint <= 0x009F):
         return 0
-    return 2 if unicodedata.east_asian_width(char) in ['W', 'F'] else 1
+    
+    # 软连字符（U+00AD）
+    if codepoint == 0x00AD:
+        return 0
+    
+    # 零宽度字符和格式控制字符
+    if codepoint in (0x200C, 0x200D, 0xFE0E, 0xFE0F):
+        return 0
+
+    # 添加对 Unicode 分类为 'Cf' 的字符的处理
+    if unicodedata.category(c) == 'Cf':
+        return 0
+    
+    # 组合字符
+    if unicodedata.combining(c):
+        return 1 if first_char else 0
+    
+    # East Asian Wide or Full-width characters
+    eaw = unicodedata.east_asian_width(c)
+    if eaw in ('W', 'F'):
+        return 2
+    
+    # 默认情况，宽度为 1
+    return 1
+
+# def char_wide(char): # 字宽，观察发现输出中文要占2个字符
+    # if ord(char) in ARABIC_ZERO_CHARS_ORD:
+    #     return 0
+    # return 2 if unicodedata.east_asian_width(char) in ['W', 'F'] else 1
 
 def line_width(line): # 行宽，中文占2个字符
     return sum([char_wide(c) for c in line])
@@ -848,8 +892,8 @@ if __name__ == '__main__':
     contains_mttb_wos_files = set()
     all_file_ctr = 0
 
-    # for i in list(os.listdir(OUT_TEXT_DIR)):
-    for i in ['2023-2023_1-19=ar.txt']:
+    for i in list(os.listdir(OUT_TEXT_DIR)):
+    # for i in ['2023-2023_10-6=es.txt']:
     # for i in ['2023-2023_100-17=fr.txt']:
         if i.endswith('.t2'):
             os.remove(OUT_TEXT_DIR / i)
@@ -874,7 +918,7 @@ if __name__ == '__main__':
             f.write('\n\n'.join(real_file_paras))
 
     print(f'all:{all_file_ctr}, mttb:{len(contains_mttb_files)}, grid_tb:{len(contains_grid_tb_files)}, mtwos:{len(contains_mttb_wos_files)}')
-    
+    # exit(0)
     def dataset_generator():
         json_info2langs = {}
         json_info2ds_row = {}
