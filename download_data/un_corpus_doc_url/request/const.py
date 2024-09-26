@@ -23,6 +23,7 @@ BLOCKWISE_JSONL_OUTPUT_DIR = WORK_DIR / 'blockwise_result.jsonl' # 单文件
 DBG_LOG_OUTPUT_FILE1 = WORK_DIR / 'dbglog1.txt'
 DBG_LOG_OUTPUT_FILE2 = WORK_DIR / 'dbglog2.txt'
 DBG_LOG_OUTPUT_FILE3 = WORK_DIR / 'dbglog3.txt'
+DBG_LOG_OUTPUT_FILE4 = WORK_DIR / 'dbglog4.txt'
 
 # candidate config
 
