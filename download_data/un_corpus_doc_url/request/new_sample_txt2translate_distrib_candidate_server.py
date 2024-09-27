@@ -1,5 +1,5 @@
 import os
-os.environ['ARGOS_DEVICE_TYPE'] = 'cuda' # 如果使用cuda取消注释这两行
+# os.environ['ARGOS_DEVICE_TYPE'] = 'cuda' # 如果使用cuda取消注释这两行
 import pickle
 from typing import List
 import re
