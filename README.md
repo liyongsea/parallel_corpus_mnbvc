@@ -27,8 +27,20 @@ python pipeline_poc.py [项目名称] other-args...
 可以整理成这个格式
 
 - 代码做成 PR 到这个仓库，每个项目在根目录下创建一个项目名字，譬如联合国平行语料 un_parallel_corpus
+
 - 更新一下 wiki
-- 整理好的数据用[DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)工具来来检查
+
+- 整理好的数据用[DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)工具来来检查：在DataCheck_MNBVC目录下运行终端命令：``python check_data.py --dataset your_folder_path``，其中``your_folder_path``为待检测语料数据所在的文件夹
+
+- datachecker执行完毕后，如果日志文件 ``\logs\check_log.txt`` 显示：
+
+  ```
+  checking dataset: your_file_path
+  the type of dataset your_file_name is 平行语料格式
+  check dataset your_file_name finished, right line 1 / total check line 1
+  ```
+
+  则表示检测通过，可以等待发布
 
 ### 输出的 jsonl 格式说明
 
@@ -80,6 +92,7 @@ python pipeline_poc.py [项目名称] other-args...
     'other1_text': 原小语种1，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
     'other2_text': 原小语种2，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
     '扩展字段': json格式字符串，详细约定见下文
+    '时间': str(yyyymmdd)
 }
 ```
 
@@ -137,7 +150,6 @@ python pipeline_poc.py [项目名称] other-args...
             "eo_text": "",
             "fr_text": "Génération du sable de l'océan",
             "he_text": "",
-            "it_text": "",
             "ja_text": "",
             "pt_text": "Gerando areia do oceano",
             "ru_text": "Создание песка в океане",
@@ -150,28 +162,12 @@ python pipeline_poc.py [项目名称] other-args...
             "id_text":"",
             "cht_text":"",
             "vi_text":"",
-            "扩展字段": "{
-                \"other_texts\": {
-                    \"cs\": \"Generování mořského písku\",
-                    \"pl\": \"Generowanie piasku morskiego\",
-                    \"hu\": \"Tengeri homok elhelyezése\",
-                    \"uk\": \"Генерація океанського піску\",
-                    \"tr\": \"Okyanus kumu üretme\"
-                },
-            }",
+            "扩展字段": "{\"other_texts\": {\"cs\": \"Generování mořského písku\", \"pl\": \"Generowanie piasku morskiego\", \"hu\": \"Tengeri homok elhelyezése\", \"uk\": \"Генерація океанського піску\", \"tr\": \"Okyanus kumu üretme\"}}",
             "时间": "20240316",
             "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2"
         }
     ],
-    "扩展字段": {
-        "other_texts_iso_map": {
-            "cs": "捷克语",
-            "pl": "波兰语",
-            "hu": "匈牙利语",
-            "uk": "乌克兰语",
-            "tr": "土耳其语"
-        }
-    },
+    "扩展字段": "{\"other_texts_iso_map\": {\"cs\": \"捷克语\", \"pl\": \"波兰语\", \"hu\": \"匈牙利语\", \"uk\": \"乌克兰语\", \"tr\": \"土耳其语\"}}",
     "时间": "20240316"
 }
 ```
