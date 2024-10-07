@@ -1,0 +1,13 @@
+alresult_dataset/
+cvcache_dataset/
+cvcache_docx/
+cvcache_flatten_table_txt/
+cvcache_txt/
+dlcache_doc/
+dlcache_filelist/
+trcache_pkl/
+trresult_dataset/
+dbglog*
+filecount.txt
+*result.jsonl
+stat_text_local.txt
