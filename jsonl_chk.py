@@ -56,7 +56,6 @@ def process_file(file_path):
                 cleared_en_text = p['en_text'].strip()
                 if not cleared_en_text or not cleared_en_text:
                     para_low_quality_count += 1
-                # 原先的写法可能导致本来有中文字段的段落其md5变空
                 if not cleared_zh_text:
                     p['zh_text_md5'] = ''
                 else:
