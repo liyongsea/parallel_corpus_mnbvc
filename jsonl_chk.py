@@ -39,7 +39,7 @@ def process_file(file_path):
                     print("【错误】非法扩展字段：", data['扩展字段'])
                     exit(1)
             data['段落数'] = len(data['段落'])
-            para_without_cn_count = 0
+            para_low_quality_count = 0
             zh_text_set = set()
             for pid, p in enumerate(data['段落']):
                 if p['扩展字段'] == '':
@@ -53,8 +53,10 @@ def process_file(file_path):
                         print("【错误】非法扩展字段：", p)
                         exit(1)
                 cleared_zh_text = p['zh_text'].strip()
-                if not cleared_zh_text or not p['en_text'].strip():
-                    para_without_cn_count += 1
+                cleared_en_text = p['en_text'].strip()
+                if not cleared_en_text or not cleared_en_text:
+                    para_low_quality_count += 1
+                if not cleared_zh_text:
                     p['zh_text_md5'] = ''
                 else:
                     p['zh_text_md5'] = hashlib.md5(cleared_zh_text.encode()).hexdigest()
@@ -64,7 +66,7 @@ def process_file(file_path):
                     p['是否重复'] = False
                 zh_text_set.add(cleared_zh_text)
             data['去重段落数'] = len(data['段落']) - len(zh_text_set)
-            data['低质量段落数'] = para_without_cn_count
+            data['低质量段落数'] = para_low_quality_count
             data['是否待查文件'] = False
             data['是否重复文件'] = False
             data_cloned = copy.deepcopy(data)
