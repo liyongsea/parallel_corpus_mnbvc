@@ -53,7 +53,7 @@ def process_file(file_path):
                         print("【错误】非法扩展字段：", p)
                         exit(1)
                 cleared_zh_text = p['zh_text'].strip()
-                if not cleared_zh_text:
+                if not cleared_zh_text or not p['en_text'].strip():
                     para_without_cn_count += 1
                     p['zh_text_md5'] = ''
                 else:

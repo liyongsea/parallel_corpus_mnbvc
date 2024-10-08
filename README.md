@@ -46,6 +46,8 @@ python pipeline_poc.py [项目名称] other-args...
 - - 命令样例（单文件）：`python jsonl_chk.py your_file_name.jsonl -ea`
 - - 命令样例（处理整个目录的所有jsonl）：`python jsonl_chk.py -d F:\path\to\your\workdir -ea`
 
+**注意：** jsonl_chk.py 脚本只能接受 jsonl 格式，即一行一个的 json 字符串，请不要把自动格式化的 json 文件贴进去尝试用这个脚本处理。
+
 ### 输出的 jsonl 格式说明
 
 对于每一个文件，他的 json 结构层次如下：
