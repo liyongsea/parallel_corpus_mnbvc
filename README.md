@@ -26,9 +26,9 @@ python pipeline_poc.py [项目名称] other-args...
 
 可以整理成这个格式
 
-- 代码做成 PR 到这个仓库，每个项目在根目录下创建一个项目名字，譬如联合国平行语料 un_parallel_corpus
+- 如果你觉得代码能够整理出来分享，可以做成本仓库的PR，PR里提及涉及的对应Issue区的单子；或者如果代码不便合入这里，也可以另外建立仓库维护，这点不做要求
 
-- 更新一下 wiki
+- 在平行语料组的 [wiki](https://wiki.mnbvc.org/doku.php/pxyl) 和 Issue 区中更新进度
 
 - 整理好的数据用[DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)工具来来检查：在DataCheck_MNBVC目录下运行终端命令：``python check_data.py --dataset your_folder_path``，其中``your_folder_path``为待检测语料数据所在的文件夹
 
@@ -40,7 +40,13 @@ python pipeline_poc.py [项目名称] other-args...
   check dataset your_file_name finished, right line 1 / total check line 1
   ```
 
-  则表示检测通过，可以等待发布
+  则表示格式检测通过
+
+- 【新】对于下文提到的`可以留空，用jsonl_chk.py自动填写`的字段，我们不推荐手动填写。你可以**先**为这些字段留对应类型的默认值以通过DataCheck，然**后**用本项目根目录的 `jsonl_chk.py` 来填写这些相对通用的字段：
+- - 命令样例（单文件）：`python jsonl_chk.py your_file_name.jsonl -ea`
+- - 命令样例（处理整个目录的所有jsonl）：`python jsonl_chk.py -d F:\path\to\your\workdir -ea`
+
+**注意：** jsonl_chk.py 脚本只能接受 jsonl 格式，即一行一个的 json 字符串，请不要把自动格式化的 json 文件贴进去尝试用这个脚本处理。
 
 ### 输出的 jsonl 格式说明
 
@@ -49,14 +55,14 @@ python pipeline_poc.py [项目名称] other-args...
 ```
 {
     '文件名': '文件.txt', # 过滤语料种类,取中文的输入文件的文件名
-    '是否待查文件': False, # 如果是True就是不怎么靠谱，告诉大家尽量别用
-    '是否重复文件': False, # 留给其它小组的字段，我们给False就行
-    '段落数': 0,
-    '去重段落数': 0, # 只看中文zh_text，完全相等就算重
-    '低质量段落数': 0, # 中文或者英文有缺（为空字符串）的段落数量
+    '是否待查文件': False, # 【可以留空，用jsonl_chk.py自动填写】如果是True就是不怎么靠谱，告诉大家尽量别用
+    '是否重复文件': False, # 【可以留空，用jsonl_chk.py自动填写】留给其它小组的字段，我们给False就行
+    '段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】
+    '去重段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】只看中文zh_text，完全相等就算重，这里统计【重复】的段落数
+    '低质量段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】zh_text或者en_text有缺（为空字符串）的段落数量
     '段落': [],
-    '扩展字段': 任意字符串，建议为json格式，但也可用直接用自然语言写注释，比如用于描述内层段落级别的扩展字段,
-    '时间': str(yyyymmdd)
+    '扩展字段': '{}' # json.dumps(xxx, ensure_ascii=False)得出的字符串，现在要求为有效的json字符串并且能被json.loads解析，所以为空时请填写{}
+    '时间': str(yyyymmdd) # 例子: 20240801
 }
 ```
 
@@ -67,9 +73,9 @@ python pipeline_poc.py [项目名称] other-args...
 ```
 {
     '行号': 如果源文件有行号信息，可以记在此处，否则取从1开始递增的值，尽量保证每个段落的行号都不同,
-    '是否重复': False, # 用zh_text全等进行判断，第一次出现的是False，后面重复的就是True
-    '是否跨文件重复': False, # 留给其它小组的字段，我们给False就行
-    'zh_text_md5': 十六进制的中文语句的md5，可以直接用hashlib.md5(zh_text).hexdigest()得到,
+    '是否重复': False, # 【可以留空，用jsonl_chk.py自动填写】用zh_text全等进行判断，第一次出现的是False，后面重复的就是True
+    '是否跨文件重复': False, # 【可以留空，用jsonl_chk.py自动填写】留给其它小组的字段，我们给False就行
+    'zh_text_md5': "b656579704c6ca5acc29f2aa36159ce2" # 【可以留空，用jsonl_chk.py自动填写】十六进制的中文语句的md5，可以直接用hashlib.md5(zh_text).hexdigest()得到,
     'zh_text': 中文,
     'en_text': 英语,
     'ar_text': 阿拉伯语,
