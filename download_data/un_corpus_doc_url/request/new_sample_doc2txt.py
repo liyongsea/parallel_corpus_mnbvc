@@ -411,7 +411,7 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
     pivot_line_idx = 0
     table_column_count = None
     contents = []
-    content_temp_buf = []
+    column_buffer = []
     plus_pos = []
     textlines = text.splitlines()
     for lineidx, line in enumerate(textlines):
@@ -421,19 +421,20 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
                 table_width = line.count('+') - 1
                 if table_width != table_column_count:
                     return None
-                # 遇到+------+----------------------------------------------------+------+---+行，把content_temp_buf的东西按整行塞进contents里
+                # 遇到+------+----------------------------------------------------+------+---+行，把column_buffer的东西按整行塞进contents里
                 temp_row = []
-                for idx, grid_content_list in enumerate(content_temp_buf):
+                for idx, grid_content_list in enumerate(column_buffer):
                     replaced_paras, _, _, _ = table_replacer(grid_content_list, _log_filename)
-                    joined_str = ' '.join(replaced_paras).strip()
-                    temp_row.append(joined_str)
+                    # if "Стандарт 41 МСУГС «Финанс" in '\n'.join(replaced_paras):
+                    #     print(1)
+                    temp_row.extend(replaced_paras)
                     grid_content_list.clear()
-                contents.append('  '.join(temp_row))
+                contents.append('\n\n'.join(temp_row))
             else:
                 # 此处初始化 table_column_count，如果遇到之后和这个不等的，证明不是合法表格，直接return None
                 pivot_line_idx = lineidx # 调试打印用
                 table_column_count = line.count('+') - 1
-                content_temp_buf = [[] for _ in range(table_column_count)]
+                column_buffer = [[] for _ in range(table_column_count)]
                 for cidx, char in enumerate(line):
                     if char == '+': plus_pos.append(cidx)
                 
@@ -464,8 +465,8 @@ def grid_table_detector(text: str, _log_filename: str) -> Union[None, List[str]]
                 splited_grid_content.pop(0)
                 # 列数相等，往temp_buf里对应的列桶塞东西
                 for idx, column_text in enumerate(splited_grid_content):
-                    # content_temp_buf[idx].append(column_text.removeprefix(' ').removesuffix(' ')) # 只删除头尾一个，避免把有意义的空格删了
-                    content_temp_buf[idx].append(column_text.strip())
+                    # column_buffer[idx].append(column_text.removeprefix(' ').removesuffix(' ')) # 只删除头尾一个，避免把有意义的空格删了
+                    column_buffer[idx].append(column_text.strip())
             else:
                 return None
     if table_column_count is not None:
@@ -742,6 +743,7 @@ def multiline_table_without_spliter_detector(lines: List[str], _log_filename: st
     if not mttb_map: return None
     return construct_out(mttb_map, lines, _log_filename, const.DBG_LOG_OUTPUT_FILE3)
 
+# lines: 按\n切开的文本
 def table_replacer(lines: List[str], _log_filename: str) -> Tuple[List[str], bool, bool, bool]:
     # lines = four_line_table_replacer(lines, _log_filename)
     is_mttb = False
@@ -759,7 +761,7 @@ def table_replacer(lines: List[str], _log_filename: str) -> Tuple[List[str], boo
     real_file_paras = []
     is_grid = False
     for pidx, para in enumerate('\n'.join(lines).split('\n\n')):
-        # if pidx == 25:
+        # if para.find("21. Влияние этих стандартов")!=-1:
             # print(pidx)
         detect_res = grid_table_detector(para, i)
         if detect_res is not None:
@@ -902,6 +904,7 @@ if __name__ == '__main__':
 
     for i in list(os.listdir(OUT_TEXT_DIR)):
     # for i in ['2023-2023_103-65=en.txt']:
+    # for i in ['2023-2023_1-13=ru.txt']:
     # for i in ['2023-2023_100-17=fr.txt']:
         if i.endswith('.t2'):
             os.remove(OUT_TEXT_DIR / i)
@@ -923,7 +926,7 @@ if __name__ == '__main__':
         
         with open(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR / i, 'w', encoding='utf-8') as f:
         # with open(OUT_TEXT_DIR / f"{i}.t2", 'w', encoding='utf-8') as f: # 仅调试用：放同目录下方便比对
-            f.write('\n\n'.join(real_file_paras))
+            f.write('\n\n'.join((x.strip() for x in real_file_paras if x.strip())))
 
     print(f'all:{all_file_ctr}, mttb:{len(contains_mttb_files)}, grid_tb:{len(contains_grid_tb_files)}, mtwos:{len(contains_mttb_wos_files)}')
     # exit(0)
