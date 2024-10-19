@@ -43,6 +43,28 @@ KEEP_KEYS = [
     "zh_text_md5",
 ]
 
+DEFAULT_EMPTY_STRING_FIELDS = [
+    "it_text",
+    "zh_text",
+    "en_text",
+    "ar_text",
+    "nl_text",
+    "de_text",
+    "eo_text",
+    "fr_text",
+    "he_text",
+    "ja_text",
+    "pt_text",
+    "ru_text",
+    "es_text",
+    "sv_text",
+    "ko_text",
+    "th_text",
+    "id_text",
+    "cht_text",
+    "vi_text",
+]
+
 def process_file(file_path):
     global is_first
     parent, filename = os.path.split(file_path)
@@ -61,6 +83,8 @@ def process_file(file_path):
     with open(file_path, "r", encoding='utf-8') as fi, open(out_file_path, "w", encoding='utf-8') as fo:
         for line in fi.read().strip().split('\n'):
             data = json.loads(line)
+            if not data.get('扩展字段'):
+                data['扩展字段'] = data.pop('拓展字段')
             if data['扩展字段'] == '':
                 data['扩展字段'] = r'{}'
             if args.enable_assert:
@@ -73,6 +97,10 @@ def process_file(file_path):
             para_low_quality_count = 0
             zh_text_set = set()
             for pid, p in enumerate(data['段落']):
+                if '时间' not in p or not p['时间']:
+                    p['时间'] = data['时间']
+                if not p.get('扩展字段'):
+                    p['扩展字段'] = p.pop('拓展字段')
                 if p['扩展字段'] == '':
                     p['扩展字段'] = r'{}'
                 if args.enable_assert:
@@ -83,6 +111,8 @@ def process_file(file_path):
                     except Exception as e:
                         print("【错误】非法扩展字段：", p)
                         exit(1)
+                for default_field in DEFAULT_EMPTY_STRING_FIELDS:
+                    p.setdefault(default_field, "")
                 cleared_zh_text = p['zh_text'].strip()
                 cleared_en_text = p['en_text'].strip()
                 if not cleared_en_text or not cleared_en_text:
@@ -112,12 +142,13 @@ def process_file(file_path):
 if args.directory:
     for filename in os.listdir(args.directory):
         if filename.endswith('.jsonl'):
-            print('filename:',filename)
+            print('[directory] filename:',filename)
             process_file(os.path.join(args.directory, filename))
 elif args.input:
+    print('[single file] filename:',args.input)
     process_file(args.input)
 else:
     print("请提供一个目录或输入文件路径。")
     exit(0)
 
-os.system('pause')
+input("处理完毕，回车关闭")
