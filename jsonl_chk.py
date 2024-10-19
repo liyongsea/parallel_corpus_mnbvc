@@ -13,6 +13,36 @@ args = parser.parse_args()
 
 is_first = True
 
+KEEP_KEYS = [
+    "行号",
+    "是否重复",
+    "是否跨文件重复",
+    "it_text",
+    "zh_text",
+    "en_text",
+    "ar_text",
+    "nl_text",
+    "de_text",
+    "eo_text",
+    "fr_text",
+    "he_text",
+    "ja_text",
+    "pt_text",
+    "ru_text",
+    "es_text",
+    "sv_text",
+    "ko_text",
+    "th_text",
+    "other1_text",
+    "other2_text",
+    "id_text",
+    "cht_text",
+    "vi_text",
+    "扩展字段",
+    "时间",
+    "zh_text_md5",
+]
+
 def process_file(file_path):
     global is_first
     parent, filename = os.path.split(file_path)
@@ -22,6 +52,7 @@ def process_file(file_path):
         if os.path.exists(out_file_dir):
             print(f"请确保{out_file_dir}目录为空，否则其内容可能会被覆盖。如不希望请直接结束本程序。")
             if input("请输入Y以确认继续进行:") != 'Y':
+                print("程序退出...")
                 exit(0)
         else:
             os.makedirs(out_file_dir)
@@ -71,8 +102,10 @@ def process_file(file_path):
             data['是否重复文件'] = False
             data_cloned = copy.deepcopy(data)
             data_cloned.pop('段落')
+            
             for pid, p in enumerate(data['段落']):
-                data_cloned['段落'] = [p]
+                for k in KEEP_KEYS:
+                    data_cloned[k] = p[k]
                 json.dump(data_cloned, fo, ensure_ascii=False)
                 fo.write('\n')
 

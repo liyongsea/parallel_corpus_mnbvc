@@ -135,6 +135,48 @@ python pipeline_poc.py [项目名称] other-args...
 一份样例语料数据（注意，扩展字段直接用json.dumps(obj,ensure_ascii=False)生成，故会带反斜杠将内部字符串的双引号转义）:
 
 ```
+【新】
+{
+    "文件名": "Terraria-workshop-localization_test2.jsonl",
+    "是否待查文件": false,
+    "是否重复文件": false,
+    "段落数": 17944,
+    "去重段落数": 0,
+    "低质量段落数": 0,
+    "行号": 1,
+    "是否重复": false,
+    "是否跨文件重复": false,
+    "it_text": "",
+    "zh_text": "正在生成海洋沙",
+    "en_text": "Generating ocean sand",
+    "ar_text": "",
+    "nl_text": "",
+    "de_text": "",
+    "eo_text": "",
+    "fr_text": "Génération du sable de l'océan",
+    "he_text": "",
+    "ja_text": "",
+    "pt_text": "Gerando areia do oceano",
+    "ru_text": "Создание песка в океане",
+    "es_text": "",
+    "sv_text": "",
+    "ko_text": "",
+    "th_text": "",
+    "other1_text": "",
+    "other2_text": "",
+    "id_text":"",
+    "cht_text":"",
+    "vi_text":"",
+    "扩展字段": "{\"other_texts\": {\"cs\": \"Generování mořského písku\", \"pl\": \"Generowanie piasku morskiego\", \"hu\": \"Tengeri homok elhelyezése\", \"uk\": \"Генерація океанського піску\", \"tr\": \"Okyanus kumu üretme\"}}",
+    "时间": "20240316",
+    "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2"
+}
+```
+
+
+<details> <summary>【旧版语料，已废弃】</summary>
+
+```
 {
     "文件名": "Terraria-workshop-localization_test2.jsonl",
     "是否待查文件": false,
@@ -177,3 +219,5 @@ python pipeline_poc.py [项目名称] other-args...
     "时间": "20240316"
 }
 ```
+
+</details>
