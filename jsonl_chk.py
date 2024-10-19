@@ -83,7 +83,7 @@ def process_file(file_path):
     with open(file_path, "r", encoding='utf-8') as fi, open(out_file_path, "w", encoding='utf-8') as fo:
         for line in fi.read().strip().split('\n'):
             data = json.loads(line)
-            if not data.get('扩展字段'):
+            if data.get('扩展字段') is None:
                 data['扩展字段'] = data.pop('拓展字段')
             if data['扩展字段'] == '':
                 data['扩展字段'] = r'{}'
@@ -99,7 +99,7 @@ def process_file(file_path):
             for pid, p in enumerate(data['段落']):
                 if '时间' not in p or not p['时间']:
                     p['时间'] = data['时间']
-                if not p.get('扩展字段'):
+                if p.get('扩展字段') is None:
                     p['扩展字段'] = p.pop('拓展字段')
                 if p['扩展字段'] == '':
                     p['扩展字段'] = r'{}'
