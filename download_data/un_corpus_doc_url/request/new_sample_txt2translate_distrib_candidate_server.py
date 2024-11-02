@@ -64,7 +64,7 @@ def clean_paragraph(paragraph):
     return re.sub(r'[ \t]{2,}', ' ', re.sub(r'\n{2,}', '\n', para)).strip()
 
 
-dataset = datasets.load_from_disk(const.CONVERT_DATASET_CACHE_DIR)
+dataset = datasets.load_from_disk(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR)
 inner_id2idx = {}
 # {ar: str, zh: str, en: str, fr: str, ru: str, es: str, de: str, record: str, inner_id: str}
 for p, row in enumerate(dataset):

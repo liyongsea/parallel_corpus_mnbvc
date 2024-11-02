@@ -95,7 +95,7 @@ def clean_paragraph(paragraph):
 
 def main():
     # {ar: str, zh: str, en: str, fr: str, ru: str, es: str, de: str, record: str, inner_id: str}
-    dataset = datasets.load_from_disk(const.CONVERT_DATASET_CACHE_DIR) # 形如 https://huggingface.co/datasets/bot-yaya/undl_text 的输入
+    dataset = datasets.load_from_disk(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR) # 形如 https://huggingface.co/datasets/bot-yaya/undl_text 的输入
     # dataset = datasets.load(r'bot-yaya/undl_text') # 或者从hf下载
     # dataset = dataset.select(range(2))
     for src_lang in ALL_SOURCE_LANGS:
