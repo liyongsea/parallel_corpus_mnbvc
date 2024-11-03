@@ -21,7 +21,6 @@ INSTALLED = {}
 # 方案：所有语言往英语翻译
 ALL_SOURCE_LANGS = ('es', 'zh', 'fr', 'ru', 'ar', 'de')
 TARGET_LANG = 'en'
-TEMPDIR_TRANSLATION = const.TRANSLATION_CACHE_DIR # 中间翻译暂存，支持重启
 
 def clean_paragraph(paragraph):
     lines = paragraph.split('\n')
@@ -64,7 +63,7 @@ def clean_paragraph(paragraph):
     return re.sub(r'[ \t]{2,}', ' ', re.sub(r'\n{2,}', '\n', para)).strip()
 
 
-dataset = datasets.load_from_disk(const.CONVERT_TEXT_FLATTEN_TABLE_CACHE_DIR)
+dataset = datasets.load_from_disk(const.CONVERT_DATASET_CACHE_DIR)
 inner_id2idx = {}
 # {ar: str, zh: str, en: str, fr: str, ru: str, es: str, de: str, record: str, inner_id: str}
 for p, row in enumerate(dataset):
@@ -72,7 +71,7 @@ for p, row in enumerate(dataset):
 
 def task_gen():
     for src_lang in ALL_SOURCE_LANGS:
-        src_lang_dump = TEMPDIR_TRANSLATION / src_lang
+        src_lang_dump = const.TRANSLATION_CACHE_DIR / src_lang
         src_lang_dump.mkdir(exist_ok=True, parents=True)
         for idx, row in enumerate(dataset):
             dump_path = src_lang_dump / f"{row['inner_id']}.pkl" # 每条记录存单文件，如果需要改并发就可以这么改
@@ -93,6 +92,7 @@ async def task_getter(ver: int):
     try:
         src_lang, src_text, inner_id = next(itr)
     except StopIteration:
+        print('no task')
         return {'taskid': -1}
     return {
         'taskid': inner_id,
@@ -110,7 +110,7 @@ class UplBody(BaseModel):
 
 @app.post('/upl')
 async def task_submit(body: UplBody):
-    src_lang_dump = TEMPDIR_TRANSLATION / body.src
+    src_lang_dump = const.TRANSLATION_CACHE_DIR / body.src
     src_lang_dump.mkdir(exist_ok=True, parents=True)
     dump_path = src_lang_dump / f"{body.taskid}.pkl" # 每条记录存单文件，如果需要改并发就可以这么改
     if dump_path.exists():

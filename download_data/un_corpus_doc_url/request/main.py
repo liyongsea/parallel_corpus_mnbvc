@@ -79,11 +79,11 @@ def transform_json(data_array):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--start_time", default="2000-01-01", help="Start time")
-    parser.add_argument("--end_time", default="2024-01-01", help="End time")
+    parser.add_argument("--start_time", default="2024-01-01", help="Start time")
+    parser.add_argument("--end_time", default="2024-01-10", help="End time")
     parser.add_argument("-o","--output_path", default="un_crawl_result", help="输出文件的路径")
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     # url缓存路径
     TEMP_PATH = Path("un_doc_url_result_temp")

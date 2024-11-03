@@ -1,6 +1,7 @@
 import os
 import json
 import random
+import shutil
 os.environ['ARGOS_DEVICE_TYPE'] = 'cuda'
 
 import datasets
@@ -44,6 +45,8 @@ if __name__ == "__main__":
         # Combine the selected rows into a new dataset
         final_ds = datasets.concatenate_datasets([longest_rows, shortest_rows, random_remaining])
 
+        if (const.ALIGN_OUTPUT_DIR / f'{lang}2en_sampled').exists():
+            shutil.rmtree(const.ALIGN_OUTPUT_DIR / f'{lang}2en_sampled')
         # Save the final dataset to disk
         final_ds.save_to_disk(const.ALIGN_OUTPUT_DIR / f'{lang}2en_sampled')
         # Save as jsonl for viewing in VSCode

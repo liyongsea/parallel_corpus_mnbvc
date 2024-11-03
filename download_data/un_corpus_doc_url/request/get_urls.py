@@ -2,6 +2,7 @@ import datetime
 import json
 from pathlib import Path
 import os
+from typing import Tuple
 import re
 from tqdm import tqdm
 from bs4 import BeautifulSoup
@@ -73,7 +74,7 @@ def get_all_file_links_by_page(soup: BeautifulSoup):
 
     return result
 
-def get_page_info(soup) -> (str, str, str, str):
+def get_page_info(soup) -> Tuple[str, str, str, str]:
     """
     Return:
         current_start、current_end、total、current_page: 当前轮次开始的数量、当前轮次结束的数量、最大数量、当前的页数。
@@ -111,7 +112,7 @@ def save_data(data, date, page, save_path):
 def check_file_exist(date, page, save_path):
     return (save_path / f"{date['from']}--{date['to']}" / f"{page}.json").exists()
 
-DEFAULT_DEADERS = {
+DEFAULT_HEADERS = {
     "Connection": "keep-alive",
     "Pragma": "no-cache",
     "Host": "documents.un.org",
@@ -153,7 +154,7 @@ class UnRequestManger():
     
     def init_session(self):
         self.session = requests.session()
-        self.session.headers = DEFAULT_DEADERS
+        self.session.headers = DEFAULT_HEADERS
 
     def get_session(self):
         if not self.session:
