@@ -1,4 +1,4 @@
-# parallel_corpus_mnbvc
+<!-- # parallel_corpus_mnbvc
 
 parallel corpus dataset from the mnbvc project
 
@@ -6,135 +6,199 @@ parallel corpus dataset from the mnbvc project
 
 ```
 pip install -r requirements.txt
-```
+``` -->
 
-### 运行管线
+#  MNBVC 平行语料
 
-```shell
-python pipeline_poc.py [项目名称] other-args...
-```
 
-#### 目前可以运行的项目:
+欢迎来到 **MNBVC 平行语料小组** 的总仓库。本仓库主要用于：
+- 存放零散代码
+- 分配小组成员任务
+- 公示统一的平行语料文件格式
 
-- us_embassy
-  - 美国大使馆
-  - params:
-    - "--downloaded_data_file" 缓存的 csv 文件
-  - 例子: `python pipeline_poc.py "us_embassy" --downloaded_data_file="us_embassy_temp.csv"`
+**注意：** 对于独立性强、文件数量多、组织结构复杂的任务，我们建议自己建立**独立仓库**来维护代码。
 
-### 添加新的语料数据集的方法
+## [平行语料是什么？](https://en.wikipedia.org/wiki/Parallel_text)
 
-可以整理成这个格式
+## 招募成员
 
-- 如果你觉得代码能够整理出来分享，可以做成本仓库的PR，PR里提及涉及的对应Issue区的单子；或者如果代码不便合入这里，也可以另外建立仓库维护，这点不做要求
+### 字幕语料任务
+- 需求（任一即可）：
+    - 有在至少包含中英双语的字幕组工作的经验
+    - 拥有相关人脉，能够与字幕数据持有者沟通
+- 详情：[字幕语料任务](https://github.com/liyongsea/parallel_corpus_mnbvc/issues/77)
+### 歌词语料任务
+- 需求（任一即可）：
+    - 曾在任意平台收集过含中英双语的歌词，手头有相关数据
+    - 了解歌词版权相关问题
+- 详情：[歌词语料任务](https://github.com/liyongsea/parallel_corpus_mnbvc/issues/92)
+### 游戏语料任务
+- 需求（任一即可）：
+    - 热爱游戏，拥有丰富的游戏库，愿意提供大型游戏包体或者账号
+    - 有时间研究游戏解包，提取本地化数据
+- 详情：[游戏语料任务](https://github.com/liyongsea/parallel_corpus_mnbvc/issues/82)
+### 探索其它平行语料
+- 需求：
+    - 有充足的时间进行网上冲浪
+    - 能够理解平行语料是什么
+    - 习惯于 markdown 语法，能够为其它成员调研、收集可以下手的网站链接
 
-- 在平行语料组的 [wiki](https://wiki.mnbvc.org/doku.php/pxyl) 和 Issue 区中更新进度
 
-- 整理好的数据用[DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)工具来来检查：在DataCheck_MNBVC目录下运行终端命令：``python check_data.py --dataset your_folder_path``，其中``your_folder_path``为待检测语料数据所在的文件夹
+> 有其它任务的idea？欢迎来issues区提问开坑！
 
-- datachecker执行完毕后，如果日志文件 ``\logs\check_log.txt`` 显示：
+## 加入方式
 
-  ```
-  checking dataset: your_file_path
-  the type of dataset your_file_name is 平行语料格式
-  check dataset your_file_name finished, right line 1 / total check line 1
-  ```
+1. 先去 [MNBVC 总仓库](https://github.com/esbatmop/MNBVC) 了解一下项目总体情况
+2. 发送申请邮件至: MNBVC@253874.net 内容简要写写自己愿意做哪块工作即可
+3. 通过后会拉微信小群，有后续问题直接在小群提问即可。在小群内讨论工作内容，每周六 16:00 同步一下进度
 
-  则表示格式检测通过
+## 常用链接
 
-- 【新】对于下文提到的`可以留空，用jsonl_chk.py自动填写`的字段，我们不推荐手动填写。你可以**先**为这些字段留对应类型的默认值以通过DataCheck，然**后**用本项目根目录的 `jsonl_chk.py` 来填写这些相对通用的字段：
-- - 命令样例（单文件）：`python jsonl_chk.py your_file_name.jsonl -ea`
-- - 命令样例（处理整个目录的所有jsonl）：`python jsonl_chk.py -d F:\path\to\your\workdir -ea`
+[平行语料小组 wiki](https://wiki.mnbvc.org/doku.php/pxyl)
 
-**注意：** jsonl_chk.py 脚本只能接受 jsonl 格式，即一行一个的 json 字符串，请不要把自动格式化的 json 文件贴进去尝试用这个脚本处理。
+[语料格式检查工具 DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC)
 
-### 输出的 jsonl 格式说明
+[临时文件微云共享站](https://www.weiyun.com/disk/sharedir/e653b09abec4e5e80bb454ef6b7f202b), 加入微信小组群方可获得加入共享组链接
 
-对于每一个文件，他的 json 结构层次如下：
+## 组织规范
 
-```
+- 每周六 16:00 组织例会同步进度
+- 以 Issues 来管理进度、分配任务
+- 对于每个独立的任务如果需要传至本仓库，请建一个能够用小写英文+数字+下划线的，能够说明任务内容的文件夹，然后提起 pull request，并且在该文件夹下建立一个 README 来介绍上传内容
+- 微信群内发出来的文件，如果是重要的需要在未来下载的，应该在共享站内也传一份
+
+## 语料文件格式
+
+语料文件是多行 `jsonl` 格式，这是其中一行的样例（实际上一行即为一个json，不需要缩进打印）：
+```json
 {
-    '文件名': '文件.txt', # 过滤语料种类,取中文的输入文件的文件名
-    '是否待查文件': False, # 【可以留空，用jsonl_chk.py自动填写】如果是True就是不怎么靠谱，告诉大家尽量别用
-    '是否重复文件': False, # 【可以留空，用jsonl_chk.py自动填写】留给其它小组的字段，我们给False就行
-    '段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】
-    '去重段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】只看中文zh_text，完全相等就算重，这里统计【重复】的段落数
-    '低质量段落数': 0, # 【可以留空，用jsonl_chk.py自动填写】zh_text或者en_text有缺（为空字符串）的段落数量
-    '段落': [],
-    '扩展字段': '{}' # json.dumps(xxx, ensure_ascii=False)得出的字符串，现在要求为有效的json字符串并且能被json.loads解析，所以为空时请填写{}
-    '时间': str(yyyymmdd) # 例子: 20240801
+    "文件名": "Terraria-workshop-localization_test2.jsonl",
+    "是否待查文件": false,
+    "是否重复文件": false,
+    "段落数": 17944,
+    "去重段落数": 0,
+    "低质量段落数": 0,
+    "行号": 1,
+    "是否重复": false,
+    "是否跨文件重复": false,
+    "it_text": "",
+    "zh_text": "正在生成海洋沙",
+    "en_text": "Generating ocean sand",
+    "ar_text": "",
+    "nl_text": "",
+    "de_text": "",
+    "eo_text": "",
+    "fr_text": "Génération du sable de l'océan",
+    "he_text": "",
+    "ja_text": "",
+    "pt_text": "Gerando areia do oceano",
+    "ru_text": "Создание песка в океане",
+    "es_text": "",
+    "sv_text": "",
+    "ko_text": "",
+    "th_text": "",
+    "other1_text": "",
+    "other2_text": "",
+    "id_text":"",
+    "cht_text":"",
+    "vi_text":"",
+    "扩展字段": "{\"other_texts\": {\"cs\": \"Generování mořského písku\", \"pl\": \"Generowanie piasku morskiego\", \"hu\": \"Tengeri homok elhelyezése\", \"uk\": \"Генерація океанського піску\", \"tr\": \"Okyanus kumu üretme\"}}",
+    "时间": "20240316",
+    "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2"
 }
 ```
 
-将每一行为一个段落，段落的 json 结构层次如下：
+为了防止迷惑，这里给出一份实际上已收录的 `底特律：变人` 的语料的前三行样例：
 
-**注意：**所有语种字段的双字母缩写优先参考[ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)的定义，并且优先填写下文所注的段落级主要字段，如果没有，则根据iso双字母简写填入扩展字段中。如果所收录语言并不在 iso 639-1 双字母简写表中，请自己起一个不与其他双字母简写有冲突的key名写到扩展字段中，并将其key名和对应的语种作为注释写到文件级扩展字段中。
-
+```json
+{"ar_text": "", "cht_text": "我不認為我們還能找到比這裡更好的……", "de_text": "Wir werden nichts Besseres finden ...", "en_text": "I don't think we'll find anything better…", "eo_text": "", "es_text": "No encontraremos nada mejor.", "fr_text": "Je doute qu'on trouve mieux que ça.", "he_text": "", "id_text": "", "it_text": "Sarà difficile trovare di meglio...", "ja_text": "ここが一番マシそうね", "ko_text": "여기보다 나은 곳은 없는 것 같아...", "nl_text": "Ik denk niet dat we iets beters zullen vinden.", "pt_text": "Não vamos encontrar melhor do que isto...", "ru_text": "Вряд ли мы найдем что-то лучше.", "sv_text": "Jag tror inte att vi kommer hitta något bättre än så här.", "th_text": "", "vi_text": "", "zh_text": "我不认为我们还能找到比这里更好的……", "zh_text_md5": "dfa2ca6972a916ec64680d8f1453f85c", "低质量段落数": 0, "去重段落数": 2102, "扩展字段": "{\"other_texts\": {\"cs\": \"Myslím, že nic lepšího nenajdeme.\", \"da\": \"Vi finder nok ikke noget bedre.\", \"el\": \"Δεν νομίζω ότι θα βρούμε κάτι καλύτερο από αυτό...\", \"es_MX\": \"No creo que encontremos algo mejor...\", \"fi\": \"En usko, että löydämme mitään parempaakaan...\", \"hu\": \"Nem hiszem, hogy találunk ennél jobbat.\", \"nb\": \"Jeg tror ikke vi finner noe bedre enn dette.\", \"pl\": \"Nic lepszego raczej nie znajdziemy...\", \"pt_BR\": \"Não vamos encontrar um lugar melhor...\", \"sl\": \"\", \"tr\": \"Daha iyisini bulacağımızdan şüpheliyim...\"}}", "文件名": "DetroitBecomeHuman-parallel_corpus.jsonl", "时间": "20241001", "是否待查文件": false, "是否跨文件重复": false, "是否重复": false, "是否重复文件": false, "段落数": 12407, "行号": 1}
+{"ar_text": "", "cht_text": "就在這裡過夜吧。", "de_text": "Machen wir‘s uns gemütlich.", "en_text": "Let's settle in for the night.", "eo_text": "", "es_text": "Nos quedaremos hoy aquí.", "fr_text": "Installons-nous pour la nuit.", "he_text": "", "id_text": "", "it_text": "Passeremo la notte qui.", "ja_text": "ここで寝ましょう", "ko_text": "오늘 밤은 여기서 보내자.", "nl_text": "Laten we hier vannacht blijven.", "pt_text": "Vamos instalar-nos para a noite.", "ru_text": "Будем ночевать здесь.", "sv_text": "Vi får slå oss ned för natten.", "th_text": "", "vi_text": "", "zh_text": "就在这里过夜吧。", "zh_text_md5": "59bbf0b5cef5cd943cd0ba59acd1e7c4", "低质量段落数": 0, "去重段落数": 2102, "扩展字段": "{\"other_texts\": {\"cs\": \"Tak se na noc utáboříme tady.\", \"da\": \"Lad os sove her.\", \"el\": \"Ας μείνουμε εδώ τη νύχτα.\", \"es_MX\": \"Instalémonos por hoy.\", \"fi\": \"Asetutaan tänne yöksi.\", \"hu\": \"Húzódjunk be éjszakára.\", \"nb\": \"Vi slår oss ned her for natten.\", \"pl\": \"Spróbujmy się rozgościć.\", \"pt_BR\": \"Vamos ficar aqui.\", \"sl\": \"\", \"tr\": \"Bu gecelik yerleşelim.\"}}", "文件名": "DetroitBecomeHuman-parallel_corpus.jsonl", "时间": "20241001", "是否待查文件": false, "是否跨文件重复": false, "是否重复": false, "是否重复文件": false, "段落数": 12407, "行号": 2}
+{"ar_text": "", "cht_text": "我來生火。", "de_text": "Ich mache ein Feuer an.", "en_text": "I'll get a fire going.", "eo_text": "", "es_text": "Encenderé un fuego.", "fr_text": "Je vais faire du feu.", "he_text": "", "id_text": "", "it_text": "Accendo un fuoco.", "ja_text": "火をおこすよ", "ko_text": "내가 불 피울게.", "nl_text": "Ik zal vuur maken.", "pt_text": "Vou fazer uma fogueira.", "ru_text": "Я разведу огонь.", "sv_text": "Jag tänder en brasa.", "th_text": "", "vi_text": "", "zh_text": "我来生火。", "zh_text_md5": "552f113da3617f26fa2c6ca9dfa21836", "低质量段落数": 0, "去重段落数": 2102, "扩展字段": "{\"other_texts\": {\"cs\": \"Rozdělám oheň.\", \"da\": \"Jeg tænder et bål.\", \"el\": \"Θα ανάψω φωτιά.\", \"es_MX\": \"Yo prenderé una fogata.\", \"fi\": \"Minä sytytän tulen.\", \"hu\": \"Gyújtok tüzet.\", \"nb\": \"Jeg tenner opp.\", \"pl\": \"Zajmę się ogniskiem.\", \"pt_BR\": \"Vou acender o fogo.\", \"sl\": \"\", \"tr\": \"Ben ateşle uğraşayım.\"}}", "文件名": "DetroitBecomeHuman-parallel_corpus.jsonl", "时间": "20241001", "是否待查文件": false, "是否跨文件重复": false, "是否重复": false, "是否重复文件": false, "段落数": 12407, "行号": 3}
 ```
+
+**注意：** 所有语种字段的双字母缩写优先参考 [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) 的定义，并且优先填写如 `ar_text` 的主要字段中，如果没有，则根据 iso 双字母简写填入扩展字段中。如果所收录语言并不在 iso 639-1 双字母简写表中，请自己起一个不与其他双字母简写有冲突的key名写到扩展字段中，并将其 key 名和对应的语种作为注释写到文件级扩展字段中。
+
+### 关于扩展字段
+
+扩展字段应该是 json 序列化后的字符串，如在 python3 中，应该是某个 `json.dumps(obj, ensure_ascii=False)` 的产物。
+
+目前的扩展字段约定如下：
+
+```python
 {
-    '行号': 如果源文件有行号信息，可以记在此处，否则取从1开始递增的值，尽量保证每个段落的行号都不同,
-    '是否重复': False, # 【可以留空，用jsonl_chk.py自动填写】用zh_text全等进行判断，第一次出现的是False，后面重复的就是True
-    '是否跨文件重复': False, # 【可以留空，用jsonl_chk.py自动填写】留给其它小组的字段，我们给False就行
-    'zh_text_md5': "b656579704c6ca5acc29f2aa36159ce2" # 【可以留空，用jsonl_chk.py自动填写】十六进制的中文语句的md5，可以直接用hashlib.md5(zh_text).hexdigest()得到,
-    'zh_text': 中文,
-    'en_text': 英语,
-    'ar_text': 阿拉伯语,
-    'nl_text': 荷兰语,
-    'de_text': 德语,
-    'eo_text': 世界语,
-    'fr_text': 法语,
-    'he_text': 希伯来文,
-    'it_text': 意大利语,
-    'ja_text': 日语,
-    'pt_text': 葡萄牙语,
-    'ru_text': 俄语,
-    'es_text': 西班牙语,
-    'sv_text': 瑞典语,
-    'ko_text': 韩语,
-    'th_text': 泰语,
-    'id_text': 印尼语,
-    'vi_text': 越南语,
-    'cht_text': 繁体中文,
-    'other1_text': 原小语种1，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
-    'other2_text': 原小语种2，因为意义不明确，每个语料的语种不统一，不建议使用，请固定给空字符串,
-    '扩展字段': json格式字符串，详细约定见下文
-    '时间': str(yyyymmdd)
-}
-```
-
-`other1_text`、`other2_text` 必须存在，但是建议为空字符串，所有未在上述字段中出现的其他语言可放到`扩展字段`中.
-
-文件以及段落的`扩展字段`为 json 字符串，目前的约定为:
-
-
-**段落**
-
-```
-{
-    other_texts: {
+    other_texts: { # 填写主字段中没有的，但源数据中存在的其它语言
         {lang1_iso}: "",
         {lang2_iso}: ""
     },
+    k: "_SCENE1_TEXT_TITLE" # 可选，如果有必要的话，可以用于填写源数据中的 key，即对齐依据
     ...
 }
 ```
 
-**文件**
+**注意：** 扩展字段内容的定义可能会频繁更新，但至少需要是一个有效的 json 字符串。即使没有东西填写，也应该保留一个 `{}`。
 
-```
+### 添加新的语料数据集的规范
+
+1. 复制以下模板，你的脚本或者你的方法应该尽可能填写其中未标明 `【不用手填】` 的所有字段。如果某个主字段中的语言没有出现，则应该填写 `""` 。
+
+```json
 {
-    other_texts_iso_map: {
-        {lang1_iso}: "语种1",
-        {lang2_iso}: "语种2"
-    }
+    "文件名": "Terraria-workshop-localization_test2.jsonl",
+    "是否待查文件": false,      【不用手填】
+    "是否重复文件": false,      【不用手填】
+    "段落数": 17944,            【不用手填】
+    "去重段落数": 0,            【不用手填】
+    "低质量段落数": 0,          【不用手填】
+    "行号": 1,                  【不用手填】
+    "是否重复": false,          【不用手填】
+    "是否跨文件重复": false,    【不用手填】
+    "zh_text_md5": "b656579704c6ca5acc29f2aa36159ce2",   【不用手填】
+    "it_text": "",
+    "zh_text": "正在生成海洋沙",
+    "en_text": "Generating ocean sand",
+    "ar_text": "",
+    "nl_text": "",
+    "de_text": "",
+    "eo_text": "",
+    "fr_text": "Génération du sable de l'océan",
+    "he_text": "",
+    "ja_text": "",
+    "pt_text": "Gerando areia do oceano",
+    "ru_text": "Создание песка в океане",
+    "es_text": "",
+    "sv_text": "",
+    "ko_text": "",
+    "th_text": "",
+    "id_text":"",
+    "cht_text":"",
+    "vi_text":"",
+    "扩展字段": "{\"other_texts\": {\"cs\": \"Generování mořského písku\", \"pl\": \"Generowanie piasku morskiego\", \"hu\": \"Tengeri homok elhelyezése\", \"uk\": \"Генерація океанського піску\", \"tr\": \"Okyanus kumu üretme\"}}",
+    "时间": "20240316"
 }
 ```
 
-如果没有别的需要收录的语种，并且也没有其它信息需要用扩展字段记录时，扩展字段这里约定填{}来保证json.loads不会出问题。
+**注意：** 出于小组工作性质，我们应该收录的是至少包含 **简体中文或繁体中文** 且包含对应的 **英文** 的语料。
 
-一份样例语料数据（注意，扩展字段直接用json.dumps(obj,ensure_ascii=False)生成，故会带反斜杠将内部字符串的双引号转义）:
+2. 将得到的语料通过本仓库下的 [jsonl_chk.py](jsonl_chk.py) 的后处理，以完成简单去重和 `【不用手填】` 字段的自动填写，用法为 `python out.jsonl` 或者用 `python -d outdir/` 的方式处理整个目录下的 jsonl 文件。在其 `jsonl_rework` 文件夹下会得到后处理完毕的 jsonl 文件。
 
-```
+3. 将得到的语料通过 [语料格式检查工具 DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC) 的检测，`python check_data.py --dataset your_folder_path`，其中 `your_folder_path` 为待检测语料数据所在的文件夹。
+
+> datachecker执行完毕后，如果日志文件 ``\logs\check_log.txt`` 显示：
+> 
+> ```
+> checking dataset: your_file_path
+> the type of dataset your_file_name is 平行语料格式
+> check dataset your_file_name finished, right line 1 / total check line 1
+> ```
+> 
+> 则表示格式检测通过
+
+4. 带着第 3 步通过的截图在小组群内发布你的 jsonl 语料，并且在中转站中传一份避免日后丢失。
+
+
+<details> <summary>【旧版语料，已废弃】</summary>
+
+```json
 {
     "文件名": "Terraria-workshop-localization_test2.jsonl",
     "是否待查文件": false,
@@ -177,3 +241,5 @@ python pipeline_poc.py [项目名称] other-args...
     "时间": "20240316"
 }
 ```
+
+</details>
