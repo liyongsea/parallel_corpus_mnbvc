@@ -4,7 +4,7 @@ from collections import namedtuple
 
 import nltk
 
-from text_segmenter import HardLineBreakDetector
+from .text_segmenter import HardLineBreakDetector
 
 CHINESE_NUM_DICT = {'零': 0, '一': 1, '二': 2, '三': 3, '四': 4,
                 '五': 5, '六': 6, '七': 7, '八': 8, '九': 9}

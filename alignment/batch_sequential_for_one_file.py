@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import logging
 import datasets
-from batch_sequential_detector import GPTBatchSequentialDetector
+from .batch_sequential_detector import GPTBatchSequentialDetector
 
 
 logging.basicConfig(level=logging.INFO)

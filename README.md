@@ -10,6 +10,10 @@ pip install -r requirements.txt
 
 #  MNBVC 平行语料
 
+# Install the repository
+
+[参考](./setup.md#install-title)
+
 
 欢迎来到 **MNBVC 平行语料小组** 的总仓库。本仓库主要用于：
 - 存放零散代码
