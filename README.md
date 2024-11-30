@@ -97,8 +97,6 @@ pip install -r requirements.txt
     "sv_text": "",
     "ko_text": "",
     "th_text": "",
-    "other1_text": "",
-    "other2_text": "",
     "id_text":"",
     "cht_text":"",
     "vi_text":"",
