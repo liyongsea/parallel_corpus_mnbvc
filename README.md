@@ -203,7 +203,7 @@ pip install -r requirements.txt
 
 **注意：** 出于小组工作性质，我们应该收录的是至少包含 **简体中文或繁体中文** 且包含对应的 **英文** 的语料。
 
-2. 将得到的语料通过本仓库下的 [jsonl_chk.py](jsonl_chk.py) 的后处理，以完成简单去重和 `【不用手填】` 字段的自动填写，用法为 `python out.jsonl` 或者用 `python -d outdir/` 的方式处理整个目录下的 jsonl 文件。在其 `jsonl_rework` 文件夹下会得到后处理完毕的 jsonl 文件。
+2. 将得到的语料通过本仓库下的 [jsonl_chk.py](jsonl_chk.py) 的后处理，以完成简单去重和 `【不用手填】` 字段的自动填写，用法为 `python jsonl_chk.py out.jsonl` 或者用 `python jsonl_chk.py -d outdir/` 的方式处理整个目录下的 jsonl 文件。在其 `jsonl_rework` 文件夹下会得到后处理完毕的 jsonl 文件。
 
 3. 将得到的语料通过 [语料格式检查工具 DataCheck_MNBVC](https://github.com/X94521/DataCheck_MNBVC) 的检测，`python check_data.py --dataset your_folder_path`，其中 `your_folder_path` 为待检测语料数据所在的文件夹。
 
