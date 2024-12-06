@@ -116,6 +116,10 @@ pip install -r requirements.txt
 
 **注意：** 所有语种字段的双字母缩写优先参考 [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) 的定义，并且优先填写如 `ar_text` 的主要字段中，如果没有，则根据 iso 双字母简写填入扩展字段中。如果所收录语言并不在 iso 639-1 双字母简写表中，请自己起一个不与其他双字母简写有冲突的key名写到扩展字段中，并将其 key 名和对应的语种作为注释写到文件级扩展字段中。
 
+实际语料样例：
+- [杀戮尖塔](corpus_sample/slay_the_spire.jsonl)
+- [泰拉瑞亚](corpus_sample/Terraria-workshop-and-vanilla.jsonl)
+
 ### 关于扩展字段
 
 扩展字段应该是 json 序列化后的字符串，如在 python3 中，应该是某个 `json.dumps(obj, ensure_ascii=False)` 的产物。
