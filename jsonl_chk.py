@@ -104,6 +104,7 @@ parser = argparse.ArgumentParser(description='''Common post-process script for p
 parser.add_argument('input', type=str, help='The input file path', nargs='?')
 parser.add_argument('-d', '--directory', type=str, help='Process a directory instead of a single file')
 parser.add_argument('-v', '--verbose', action='store_true', help='Print deduplication info')
+parser.add_argument('-dr', '--disable_rename', action='store_true', help='Disable auto assign json `filename` field to its file name')
 # parser.add_argument('-ea', '--enable_assert', action='store_true', help='Enable assertions in the script')
 # parser.add_argument('-da', '--disable_auto_dedup', action='store_true', help='Disable auto deduplicate and empty line elimination')
 
@@ -277,6 +278,8 @@ def process_file(file_path):
         fic = fi.read()
     for line in fic.strip().split('\n'):
         data: dict = json.loads(line)
+        if not args.disable_rename:
+            data['文件名'] = filename # 对于游戏语料，这里强制要求文件名等于jsonl内部文件名
         filelines = filename2lines.setdefault(data['文件名'], [])
         if data.get('扩展字段') is None:
             data['扩展字段'] = data.pop('拓展字段', r'{}')
