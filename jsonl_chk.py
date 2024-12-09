@@ -272,7 +272,7 @@ def process_file(file_path):
         else:
             os.makedirs(out_file_dir)
         is_first = False
-
+    first_warn_map = {'unk_key': set(), 'other_texts_key_check': set()}
     filename2lines = {} # 以文件名为主键，不同的文件名不共享行号、行结构、中文去重计数
     with open(file_path, "r", encoding='utf-8') as fi:
         fic = fi.read()
@@ -287,7 +287,24 @@ def process_file(file_path):
             data['扩展字段'] = r'{}'
         try:
             ext_field = json.loads(data['扩展字段'])
-            data['扩展字段'] = json.dumps(ext_field, ensure_ascii=False, sort_keys=True)
+            accepted_fields = {}
+            if 'other_texts' in ext_field:
+                other_texts_field = ext_field.pop('other_texts')
+                for k, v in other_texts_field.items():
+                    if len(k) != 2 or not k.islower():
+                        if k not in first_warn_map['other_texts_key_check']:
+                            first_warn_map['other_texts_key_check'].add(k)
+                            print("【警告】other_texts含有key名可能不合ISO 639-1规范的语种双字母缩写，请向工作群报告:", k)
+                accepted_fields['other_texts'] = other_texts_field
+            if 'k' in ext_field:
+                k_field = ext_field.pop('k')
+                accepted_fields['k'] = k_field
+            for unknown_key, val in ext_field.items():
+                if unknown_key not in first_warn_map['unk_key']:
+                    first_warn_map['unk_key'].add(unknown_key)
+                    print("【警告】扩展字段含有尚未定义的字段，请向工作群报告:", unknown_key)
+                accepted_fields[unknown_key] = val # 打印警告信息，但是允许收录
+            data['扩展字段'] = json.dumps(accepted_fields, ensure_ascii=False, sort_keys=True)
         except Exception as e:
             print("【错误】扩展字段并非有效json字符串：", data['扩展字段'])
             exit(1)
