@@ -321,7 +321,7 @@ static std::vector<std::string> scan_filelines(std::vector<std::string> fileline
                 cloned_line[f] = line[f];
             }
             // line = std::move(cloned_line);
-            filelines[i] = cloned_line.dump(-1, ' ', false, json::error_handler_t::ignore)
+            filelines[i] = cloned_line.dump(-1, ' ', false, json::error_handler_t::ignore);
         }
     }
     return filelines;
@@ -545,12 +545,14 @@ static void process_file(const fs::path &file_path)
                         merged[k] = p[k];
                     }
                     filelines.push_back(merged.dump(-1, ' ', false, json::error_handler_t::ignore));
+                    merged.clear();
                 }
             }
             else
             {
                 // 新版语料行
                 filelines.push_back(data.dump(-1, ' ', false, json::error_handler_t::ignore));
+                data.clear();
             }
         }
     }
