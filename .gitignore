@@ -146,3 +146,10 @@ un_crawl_result
 un_crawl_temp
 
 un_doc_url_result_temp
+
+*.obj
+*.exe
+jsonl_test
+md5.cpp
+md5.h
+json.hpp
