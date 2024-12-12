@@ -390,7 +390,7 @@ def process_file(file_path):
             while filelines:
                 line = pickle.loads(filelines.pop())
             # for lineid, line in enumerate(filelines):
-                fobuf.append(json.dumps(line, fo, ensure_ascii=False, sort_keys=True) + '\n')
+                fobuf.append(json.dumps(line, ensure_ascii=False, sort_keys=True) + '\n')
                 line.clear()
                 del line
                 if len(fobuf) > 16384:
