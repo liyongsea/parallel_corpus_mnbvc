@@ -320,7 +320,7 @@ def process_file(file_path: Path):
         del dedup_dict
         # digest = hashlib.sha256(dedup_str).hexdigest() + hashlib.md5(dedup_str).hexdigest() # 选一个快又不那么容易冲突的办法就行
         # digest = hashlib.sha256(dedup_str).hexdigest()
-        digest = hashlib.md5(dedup_bytes).digest() + len(dedup_bytes).to_bytes(4)
+        digest = hashlib.md5(dedup_bytes).digest() + (len(dedup_bytes) % 256).to_bytes(1, signed=False)
         _prvlen = len(dedup_str_set)
         dedup_str_set.add(digest)
         _afterlen = len(dedup_str_set)
@@ -343,7 +343,7 @@ def process_file(file_path: Path):
             filename2low_quality_count[linejsonfilename] += 1
         # _prvlen = len(zh_text_set)
         dedup_bytes = zh_text.encode("utf-8")
-        digest = hashlib.md5(dedup_bytes).digest() + len(dedup_bytes).to_bytes(4)
+        digest = hashlib.md5(dedup_bytes).digest() + (len(dedup_bytes) % 256).to_bytes(1, signed=False) # 内存瓶颈
         zh_text_set.add(digest)
         # _afterlen = len(zh_text_set)
     del filename2linedigest
@@ -390,7 +390,7 @@ def process_file(file_path: Path):
                 bio.seek(0)
                 bio.truncate()
                 out_file_id += 1
-                next_out_file_path = file_path.parent / "jsonl_reworked" / f"{filename_without_ext}-{out_file_id}{file_ext_name}"
+                next_out_file_path = file_path.parent / "jsonl_reworked" / f"{filename_without_ext}-{out_file_id}.{file_ext_name}"
         bio.write(outjsonbytes)
     if bio.tell() > 0:
         print("out file:",next_out_file_path)
